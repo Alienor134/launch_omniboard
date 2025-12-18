@@ -5,6 +5,7 @@ from pymongo import MongoClient
 import subprocess
 import sys
 import socket
+import hashlib
 
 class MongoApp(tk.Tk):
     def __init__(self):
@@ -89,26 +90,30 @@ class MongoApp(tk.Tk):
             self.selected_db.set("")
             self.launch_btn.config(state=tk.DISABLED)
 
-    def find_free_port(self, start_port=9005, max_tries=20):
-        port = int(start_port)
-        for _ in range(max_tries):
+    def port_for_db(self, db_name, base=20000, span=10000):
+        """Generate a deterministic port number based on database name."""
+        h = int(hashlib.sha256(db_name.encode()).hexdigest(), 16)
+        return base + (h % span)
+
+    def find_available_port(self, start_port):
+        """Find an available port starting from the given port."""
+        port = start_port
+        while True:
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
                 try:
                     s.bind(("", port))
+                    # Also check if Docker is using this port
+                    try:
+                        result = subprocess.run(
+                            ["docker", "ps", "--filter", f"publish={port}", "--format", "{{.ID}}"],
+                            capture_output=True, text=True
+                        )
+                        if result.stdout.strip() == "":
+                            return port
+                    except Exception:
+                        return port
                 except OSError:
-                    port += 1
-                    continue
-            try:
-                result = subprocess.run(
-                    ["docker", "ps", "--filter", f"publish={port}", "--format", "{{.ID}}"],
-                    capture_output=True, text=True
-                )
-                if result.stdout.strip() == "":
-                    return str(port)
-            except Exception:
-                return str(port)
-            port += 1
-        raise RuntimeError("No free port found for Omniboard.")
+                    port += 1  # deterministic fallback
 
     def clear_omniboard_docker(self):
         try:
@@ -139,11 +144,9 @@ class MongoApp(tk.Tk):
             messagebox.showerror("Error", "No database selected.")
             return
 
-        try:
-            host_port = self.find_free_port(9005)
-        except RuntimeError as e:
-            messagebox.showerror("Port Error", str(e))
-            return
+        # Get deterministic port based on database name
+        preferred_port = self.port_for_db(db_name)
+        host_port = self.find_available_port(preferred_port)
 
         port = self.port_var.get() or "27017"
         if sys.platform.startswith("win") or sys.platform == "darwin":
