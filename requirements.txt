@@ -1,0 +1,13 @@
+altgraph @ file:///C:/miniconda3/conda-bld/altgraph_1761911615111/work
+customtkinter==5.2.2
+darkdetect==0.8.0
+dnspython @ file:///C:/miniconda3/conda-bld/dnspython_1763718338084/work
+importlib_metadata @ file:///C:/miniconda3/conda-bld/importlib_metadata-suite_1763996632649/work
+packaging @ file:///C:/miniconda3/conda-bld/packaging_1761049101700/work
+pefile @ file:///C:/b/abs_68oy9ka6fm/croot/pefile_1720651782540/work
+pyinstaller @ file:///D:/bld/pyinstaller_1764024288086/work
+pyinstaller-hooks-contrib @ file:///home/conda/feedstock_root/build_artifacts/pyinstaller-hooks-contrib_1763806585804/work
+pymongo @ file:///C:/miniconda3/conda-bld/pymongo_1764088384418/work
+pywin32 @ file:///C:/b/abs_6c9w_vp9zi/croot/pywin32_1754670534373/work
+pywin32-ctypes @ file:///C:/b/abs_2cfx5l4nvi/croot/pywin32-ctypes_1709340246092/work
+zipp @ file:///C:/miniconda3/conda-bld/zipp_1763977937192/work
