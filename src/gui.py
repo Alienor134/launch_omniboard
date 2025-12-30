@@ -324,8 +324,8 @@ class MongoApp(ctk.CTk):
             self.omniboard_info_text.insert("end", "\n")
             self.omniboard_info_text.configure(state="disabled")
             
-            # Open in browser after 2 second delay
-            self.after(2000, lambda: webbrowser.open(url))
+            # Open in browser after 4 second delay to allow Omniboard to fully start
+            self.after(4000, lambda: webbrowser.open(url))
         except Exception as e:
             messagebox.showerror("Launch Error", str(e))
 
