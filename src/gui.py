@@ -267,7 +267,32 @@ class MongoApp(ctk.CTk):
                 
                 self.selected_label.configure(text="Please select a database")
         except Exception as e:
-            messagebox.showerror("Connection Error", str(e))
+            error_msg = str(e)
+            
+            # Provide friendlier error messages
+            if "ServerSelectionTimeoutError" in error_msg or "timed out" in error_msg.lower():
+                friendly_msg = (
+                    "Cannot connect to MongoDB server.\n\n"
+                    "Please ensure:\n"
+                    "• MongoDB is running on the specified port\n"
+                    "• The port number is correct\n"
+                    "• Your firewall allows the connection"
+                )
+            elif "connection refused" in error_msg.lower():
+                friendly_msg = (
+                    "Connection refused by MongoDB server.\n\n"
+                    "MongoDB may not be running on this port.\n"
+                    "Please start MongoDB or verify the port number."
+                )
+            elif "authentication failed" in error_msg.lower():
+                friendly_msg = (
+                    "MongoDB authentication failed.\n\n"
+                    "Please check your username and password in the connection URL."
+                )
+            else:
+                friendly_msg = f"Connection Error:\n\n{error_msg}"
+            
+            messagebox.showerror("MongoDB Connection Failed", friendly_msg)
             self.selected_label.configure(text="Connection failed")
 
     def select_database(self, db_name):

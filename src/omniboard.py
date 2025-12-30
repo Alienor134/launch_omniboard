@@ -4,11 +4,76 @@ import socket
 import hashlib
 import uuid
 import sys
+import time
 from typing import List, Optional
 
 
 class OmniboardManager:
     """Manages Omniboard Docker containers."""
+    
+    @staticmethod
+    def is_docker_running() -> bool:
+        """Check if Docker daemon is running.
+        
+        Returns:
+            True if Docker is running, False otherwise
+        """
+        try:
+            result = subprocess.run(
+                ["docker", "info"],
+                capture_output=True,
+                timeout=5
+            )
+            return result.returncode == 0
+        except (subprocess.TimeoutExpired, FileNotFoundError):
+            return False
+    
+    @staticmethod
+    def start_docker_desktop():
+        """Attempt to start Docker Desktop.
+        
+        Raises:
+            Exception: If Docker Desktop cannot be started
+        """
+        if sys.platform.startswith("win"):
+            # Windows
+            subprocess.Popen(
+                ["powershell", "-Command", "Start-Process", "'C:\\Program Files\\Docker\\Docker\\Docker Desktop.exe'"],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL
+            )
+        elif sys.platform == "darwin":
+            # macOS
+            subprocess.Popen(
+                ["open", "-a", "Docker"],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL
+            )
+        else:
+            # Linux - typically systemd
+            subprocess.Popen(
+                ["systemctl", "start", "docker"],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL
+            )
+        
+        # Wait up to 30 seconds for Docker to start
+        for _ in range(30):
+            time.sleep(1)
+            if OmniboardManager.is_docker_running():
+                return
+        
+        raise Exception("Docker Desktop failed to start within 30 seconds")
+    
+    @staticmethod
+    def ensure_docker_running():
+        """Ensure Docker is running, start it if needed.
+        
+        Raises:
+            Exception: If Docker cannot be started
+        """
+        if not OmniboardManager.is_docker_running():
+            OmniboardManager.start_docker_desktop()
     
     @staticmethod
     def generate_port_for_database(db_name: str, base: int = 20000, span: int = 10000) -> int:
@@ -91,6 +156,9 @@ class OmniboardManager:
         Raises:
             Exception: If Docker launch fails
         """
+        # Ensure Docker is running
+        self.ensure_docker_running()
+        
         # Find an available port if not specified
         if host_port is None:
             preferred_port = self.generate_port_for_database(db_name)
