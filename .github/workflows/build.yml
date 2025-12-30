@@ -132,29 +132,33 @@ jobs:
       uses: actions/download-artifact@v4
       with:
         name: OmniboardLauncher-Windows
-        path: ./artifacts/windows
+        path: ./windows
     
     - name: Download macOS artifact
       uses: actions/download-artifact@v4
       with:
         name: OmniboardLauncher-macOS
-        path: ./artifacts/macos
+        path: ./macos
     
     - name: Download Linux artifact
       uses: actions/download-artifact@v4
       with:
         name: OmniboardLauncher-Linux
-        path: ./artifacts/linux
+        path: ./linux
+    
+    - name: Rename artifacts
+      run: |
+        mv ./macos/OmniboardLauncher ./macos/OmniboardLauncher-macOS
+        mv ./linux/OmniboardLauncher ./linux/OmniboardLauncher-Linux
     
     - name: Create Release
       uses: softprops/action-gh-release@v1
       with:
         files: |
-          ./artifacts/windows/OmniboardLauncher.exe
-          ./artifacts/macos/OmniboardLauncher
-          ./artifacts/linux/OmniboardLauncher
+          ./windows/OmniboardLauncher.exe
+          ./macos/OmniboardLauncher-macOS
+          ./linux/OmniboardLauncher-Linux
         draft: true
         prerelease: false
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
