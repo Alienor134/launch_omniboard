@@ -6,7 +6,7 @@ a = Analysis(
     ['src/main.py'],
     pathex=[],
     binaries=[],
-    datas=[('DataBase.ico', '.')],
+    datas=[('assets/DataBase.ico', '.')],
     hiddenimports=['customtkinter', 'pymongo', 'src.mongodb', 'src.omniboard', 'src.gui'],
     hookspath=[],
     hooksconfig={},
@@ -40,5 +40,5 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-    icon='DataBase.ico',
+    icon='assets/DataBase.ico',
 )
