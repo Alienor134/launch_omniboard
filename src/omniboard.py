@@ -1,0 +1,159 @@
+"""Omniboard Docker container management."""
+import subprocess
+import socket
+import hashlib
+import uuid
+import sys
+from typing import List, Optional
+
+
+class OmniboardManager:
+    """Manages Omniboard Docker containers."""
+    
+    @staticmethod
+    def generate_port_for_database(db_name: str, base: int = 20000, span: int = 10000) -> int:
+        """Generate a deterministic port number based on database name.
+        
+        Args:
+            db_name: Database name
+            base: Base port number
+            span: Port range span
+            
+        Returns:
+            Port number
+        """
+        h = int(hashlib.sha256(db_name.encode()).hexdigest(), 16)
+        return base + (h % span)
+    
+    @staticmethod
+    def find_available_port(start_port: int) -> int:
+        """Find an available port starting from the given port.
+        
+        Args:
+            start_port: Starting port to search from
+            
+        Returns:
+            Available port number
+        """
+        port = start_port
+        while True:
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                try:
+                    s.bind(("", port))
+                    # Also check if Docker is using this port
+                    try:
+                        result = subprocess.run(
+                            ["docker", "ps", "--filter", f"publish={port}", "--format", "{{.ID}}"],
+                            capture_output=True,
+                            text=True,
+                            timeout=5
+                        )
+                        if result.stdout.strip() == "":
+                            return port
+                    except (subprocess.TimeoutExpired, FileNotFoundError):
+                        return port
+                except OSError:
+                    port += 1
+    
+    @staticmethod
+    def adjust_mongo_host_for_docker(mongo_host: str) -> str:
+        """Adjust MongoDB host for Docker networking.
+        
+        Args:
+            mongo_host: Original MongoDB host
+            
+        Returns:
+            Adjusted host for Docker
+        """
+        if sys.platform.startswith("win") or sys.platform == "darwin":
+            if mongo_host in ["localhost", "127.0.0.1"]:
+                return "host.docker.internal"
+        return mongo_host
+    
+    def launch(
+        self,
+        db_name: str,
+        mongo_host: str,
+        mongo_port: int,
+        host_port: Optional[int] = None
+    ) -> tuple[str, int]:
+        """Launch an Omniboard Docker container.
+        
+        Args:
+            db_name: Database name to connect to
+            mongo_host: MongoDB host
+            mongo_port: MongoDB port
+            host_port: Optional host port (will find available if not provided)
+            
+        Returns:
+            Tuple of (container_name, host_port)
+            
+        Raises:
+            Exception: If Docker launch fails
+        """
+        # Find an available port if not specified
+        if host_port is None:
+            preferred_port = self.generate_port_for_database(db_name)
+            host_port = self.find_available_port(preferred_port)
+        
+        # Adjust host for Docker
+        docker_mongo_host = self.adjust_mongo_host_for_docker(mongo_host)
+        
+        # Build Docker command
+        mongo_arg = f"{docker_mongo_host}:{mongo_port}:{db_name}"
+        container_name = f"omniboard_{uuid.uuid4().hex[:8]}"
+        
+        docker_cmd = [
+            "docker", "run", "-it", "--rm",
+            "-p", f"{host_port}:9000",
+            "--name", container_name,
+            "vivekratnavel/omniboard",
+            "-m", mongo_arg
+        ]
+        
+        # Launch container
+        subprocess.Popen(docker_cmd)
+        
+        return container_name, host_port
+    
+    @staticmethod
+    def list_containers() -> List[str]:
+        """List all Omniboard container IDs.
+        
+        Returns:
+            List of container IDs
+        """
+        try:
+            result = subprocess.run(
+                'docker ps -a --filter "name=omniboard_" --format "{{.ID}}"',
+                shell=True,
+                capture_output=True,
+                text=True,
+                timeout=10
+            )
+            return result.stdout.strip().splitlines()
+        except (subprocess.TimeoutExpired, FileNotFoundError):
+            return []
+    
+    def clear_all_containers(self) -> int:
+        """Remove all Omniboard Docker containers.
+        
+        Returns:
+            Number of containers removed
+        """
+        container_ids = self.list_containers()
+        
+        if not container_ids:
+            return 0
+        
+        for cid in container_ids:
+            try:
+                subprocess.run(
+                    f"docker rm -f {cid}",
+                    shell=True,
+                    timeout=10
+                )
+            except (subprocess.TimeoutExpired, FileNotFoundError):
+                pass
+        
+        return len(container_ids)
