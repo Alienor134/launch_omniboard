@@ -1,19 +1,20 @@
+"""Main application GUI using CustomTkinter."""
 import customtkinter as ctk
 from tkinter import messagebox
-from pymongo import MongoClient
-import subprocess
-import sys
-import socket
-import hashlib
 import webbrowser
-import uuid
-from urllib.parse import urlparse
+
+from mongodb import MongoDBClient
+from omniboard import OmniboardManager
 
 # Set appearance mode and color theme
-ctk.set_appearance_mode("dark")  # Modes: "System" (default), "Dark", "Light"
+ctk.set_appearance_mode("dark")
+
 
 class MongoApp(ctk.CTk):
+    """Main application window for MongoDB Database Selector and Omniboard Launcher."""
+    
     def __init__(self):
+        """Initialize the main application window."""
         super().__init__()
         self.title("MongoDB Database Selector")
         self.geometry("550x700")
@@ -22,8 +23,13 @@ class MongoApp(ctk.CTk):
         # Hide window initially to allow background loading
         self.withdraw()
 
+        # Initialize backend managers
+        self.mongo_client = MongoDBClient()
+        self.omniboard_manager = OmniboardManager()
+
+        # UI state variables
         self.port_var = ctk.StringVar(value="27017")
-        self.mongo_url_var = ctk.StringVar(value="")
+        self.mongo_url_var = ctk.StringVar(value="mongodb://localhost:27017/")
         self.connection_mode = ctk.StringVar(value="Port")
         self.db_list = []
         self.selected_db = ctk.StringVar()
@@ -31,7 +37,17 @@ class MongoApp(ctk.CTk):
         # Configure grid weight
         self.grid_columnconfigure(0, weight=1)
 
-        # Title Label
+        # Initialize UI components
+        self._create_title()
+        self._create_connection_frame()
+        self._create_database_frame()
+        self._create_omniboard_frame()
+        
+        # Show window after 2 second delay
+        self.after(2000, self.deiconify)
+
+    def _create_title(self):
+        """Create the title label."""
         title_label = ctk.CTkLabel(
             self, 
             text="MongoDB & Omniboard Launcher",
@@ -39,7 +55,8 @@ class MongoApp(ctk.CTk):
         )
         title_label.grid(row=0, column=0, padx=20, pady=(10, 5), sticky="ew")
 
-        # Connection Frame
+    def _create_connection_frame(self):
+        """Create the connection configuration frame."""
         self.connection_frame = ctk.CTkFrame(self)
         self.connection_frame.grid(row=1, column=0, padx=20, pady=5, sticky="ew")
         self.connection_frame.grid_columnconfigure(1, weight=1)
@@ -75,7 +92,8 @@ class MongoApp(ctk.CTk):
         self.url_entry = ctk.CTkEntry(
             self.connection_frame,
             textvariable=self.mongo_url_var,
-            placeholder_text="mongodb://localhost:27017/"
+            placeholder_text="mongodb://localhost:27017/",
+            width=300
         )
         self.url_label.grid_remove()
         self.url_entry.grid_remove()
@@ -90,7 +108,8 @@ class MongoApp(ctk.CTk):
         )
         self.connect_btn.grid(row=3, column=0, columnspan=2, padx=10, pady=5, sticky="ew")
 
-        # Database Selection Frame
+    def _create_database_frame(self):
+        """Create the database selection frame."""
         self.db_frame = ctk.CTkFrame(self)
         self.db_frame.grid(row=2, column=0, padx=20, pady=5, sticky="nsew")
         self.db_frame.grid_columnconfigure(0, weight=1)
@@ -103,7 +122,11 @@ class MongoApp(ctk.CTk):
         ).grid(row=0, column=0, padx=10, pady=(5, 2), sticky="w")
 
         # Scrollable frame for databases
-        self.db_scrollable_frame = ctk.CTkScrollableFrame(self.db_frame, height=300, fg_color=("gray95", "gray20"))
+        self.db_scrollable_frame = ctk.CTkScrollableFrame(
+            self.db_frame, 
+            height=300, 
+            fg_color=("gray95", "gray20")
+        )
         self.db_scrollable_frame.grid(row=1, column=0, padx=10, pady=2, sticky="nsew")
         self.db_frame.grid_rowconfigure(1, weight=1)
         
@@ -119,7 +142,8 @@ class MongoApp(ctk.CTk):
         )
         self.selected_label.grid(row=2, column=0, padx=10, pady=5, sticky="ew")
 
-        # Omniboard Control Frame
+    def _create_omniboard_frame(self):
+        """Create the Omniboard control frame."""
         self.omniboard_frame = ctk.CTkFrame(self)
         self.omniboard_frame.grid(row=3, column=0, padx=20, pady=5, sticky="ew")
         self.omniboard_frame.grid_columnconfigure(0, weight=1)
@@ -149,65 +173,47 @@ class MongoApp(ctk.CTk):
         )
         self.clear_docker_btn.grid(row=1, column=0, padx=10, pady=3, sticky="ew")
 
+        # Label for Omniboard URLs
+        ctk.CTkLabel(
+            self.omniboard_frame,
+            text="Omniboard URLs:",
+            font=ctk.CTkFont(size=11, weight="bold"),
+            anchor="w"
+        ).grid(row=2, column=0, padx=10, pady=(5, 0), sticky="w")
+
         # Omniboard info textbox (for clickable links)
         self.omniboard_info_text = ctk.CTkTextbox(
             self.omniboard_frame,
-            height=60,
+            height=80,
             wrap="word",
             font=ctk.CTkFont(size=11)
         )
-        self.omniboard_info_text.grid(row=2, column=0, padx=10, pady=(3, 5), sticky="ew")
+        self.omniboard_info_text.grid(row=3, column=0, padx=10, pady=(2, 5), sticky="ew")
         self.omniboard_info_text.configure(state="disabled")
         
         # Configure link tag for blue, underlined, clickable text
         self.omniboard_info_text.tag_config("link", foreground="#1f6aa5", underline=True)
         self.omniboard_info_text.tag_bind("link", "<Button-1>", self.on_link_click)
-        self.omniboard_info_text.tag_bind("link", "<Enter>", lambda e: self.omniboard_info_text.configure(cursor="hand2"))
-        self.omniboard_info_text.tag_bind("link", "<Leave>", lambda e: self.omniboard_info_text.configure(cursor=""))
-        
-        # Show window after 2 second delay to allow background loading
-        self.after(2000, self.deiconify)
+        self.omniboard_info_text.tag_bind("link", "<Enter>", 
+                                          lambda e: self.omniboard_info_text.configure(cursor="hand2"))
+        self.omniboard_info_text.tag_bind("link", "<Leave>", 
+                                          lambda e: self.omniboard_info_text.configure(cursor=""))
 
     def on_connection_mode_change(self, value):
         """Toggle between Port and Full URL input modes."""
         if value == "Port":
-            # Show port entry, hide URL entry
             self.port_label.grid(row=2, column=0, padx=(10, 5), pady=5, sticky="w")
             self.port_entry.grid(row=2, column=1, padx=(5, 10), pady=5, sticky="w")
             self.url_label.grid_remove()
             self.url_entry.grid_remove()
         else:  # Full URL
-            # Hide port entry, show URL entry
             self.port_label.grid_remove()
             self.port_entry.grid_remove()
             self.url_label.grid(row=2, column=0, padx=(10, 5), pady=5, sticky="w")
             self.url_entry.grid(row=2, column=1, padx=(5, 10), pady=5, sticky="ew")
 
-    def get_mongo_uri(self):
-        """Get MongoDB connection URI based on selected mode."""
-        if self.connection_mode.get() == "Port":
-            port = self.port_var.get() or "27017"
-            return f"mongodb://localhost:{port}/"
-        else:  # Full URL
-            url = self.mongo_url_var.get().strip()
-            if not url:
-                return None
-            # Ensure it starts with mongodb://
-            if not url.startswith("mongodb://") and not url.startswith("mongodb+srv://"):
-                url = "mongodb://" + url
-            return url
-
-    def parse_mongo_url(self, url):
-        """Parse MongoDB URL to extract host, port, and database for Omniboard.
-        Returns tuple: (host, port, database)
-        """
-        parsed = urlparse(url)
-        host = parsed.hostname or "localhost"
-        port = parsed.port or 27017
-        database = parsed.path.strip("/") if parsed.path else None
-        return host, port, database
-
     def connect(self):
+        """Connect to MongoDB and list available databases."""
         # Clear previous database labels
         for label in self.db_labels:
             label.destroy()
@@ -215,15 +221,20 @@ class MongoApp(ctk.CTk):
         self.selected_db_label = None
         
         self.selected_label.configure(text="Connecting...")
-        uri = self.get_mongo_uri()
-        if not uri:
-            messagebox.showerror("Error", "Please provide a valid MongoDB connection (port or URL).")
-            self.selected_label.configure(text="Connection failed")
-            return
         
         try:
-            client = MongoClient(uri, serverSelectionTimeoutMS=3000)
-            dbs = client.list_database_names()
+            # Connect based on mode
+            if self.connection_mode.get() == "Port":
+                port = self.port_var.get() or "27017"
+                dbs = self.mongo_client.connect_by_port(port)
+            else:
+                url = self.mongo_url_var.get().strip()
+                if not url:
+                    messagebox.showerror("Error", "Please provide a valid MongoDB URL.")
+                    self.selected_label.configure(text="Connection failed")
+                    return
+                dbs = self.mongo_client.connect_by_url(url)
+            
             self.db_list = dbs
             
             if not dbs:
@@ -250,19 +261,46 @@ class MongoApp(ctk.CTk):
                     label.pack(pady=0, padx=5, fill="x")
                     label.bind("<Button-1>", lambda e, d=db: self.select_database(d))
                     label.bind("<Enter>", lambda e, l=label: l.configure(fg_color=("gray85", "gray30")))
-                    label.bind("<Leave>", lambda e, l=label: l.configure(fg_color="transparent") if l != self.selected_db_label else None)
+                    label.bind("<Leave>", lambda e, l=label: l.configure(fg_color="transparent") 
+                              if l != self.selected_db_label else None)
                     self.db_labels.append(label)
                 
                 self.selected_label.configure(text="Please select a database")
         except Exception as e:
-            messagebox.showerror("Connection Error", str(e))
+            error_msg = str(e)
+            
+            # Provide friendlier error messages
+            if "ServerSelectionTimeoutError" in error_msg or "timed out" in error_msg.lower():
+                friendly_msg = (
+                    "Cannot connect to MongoDB server.\n\n"
+                    "Please ensure:\n"
+                    "• MongoDB is running on the specified port\n"
+                    "• The port number is correct\n"
+                    "• Your firewall allows the connection"
+                )
+            elif "connection refused" in error_msg.lower():
+                friendly_msg = (
+                    "Connection refused by MongoDB server.\n\n"
+                    "MongoDB may not be running on this port.\n"
+                    "Please start MongoDB or verify the port number."
+                )
+            elif "authentication failed" in error_msg.lower():
+                friendly_msg = (
+                    "MongoDB authentication failed.\n\n"
+                    "Please check your username and password in the connection URL."
+                )
+            else:
+                friendly_msg = f"Connection Error:\n\n{error_msg}"
+            
+            messagebox.showerror("MongoDB Connection Failed", friendly_msg)
             self.selected_label.configure(text="Connection failed")
 
     def select_database(self, db_name):
+        """Select a database and enable the launch button."""
         self.selected_db.set(db_name)
         self.selected_label.configure(
             text=f"Selected: {db_name}",
-            text_color=("#1f6aa5", "#5fb4ff")  # Different colors for light/dark mode
+            text_color=("#1f6aa5", "#5fb4ff")
         )
         self.launch_btn.configure(state="normal")
         
@@ -274,91 +312,28 @@ class MongoApp(ctk.CTk):
             elif isinstance(label, ctk.CTkLabel) and label.cget("text") != "No databases found":
                 label.configure(fg_color="transparent", text_color=("black", "white"))
 
-    def port_for_db(self, db_name, base=20000, span=10000):
-        """Generate a deterministic port number based on database name."""
-        h = int(hashlib.sha256(db_name.encode()).hexdigest(), 16)
-        return base + (h % span)
-
-    def find_available_port(self, start_port):
-        """Find an available port starting from the given port."""
-        port = start_port
-        while True:
-            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-                try:
-                    s.bind(("", port))
-                    # Also check if Docker is using this port
-                    try:
-                        result = subprocess.run(
-                            ["docker", "ps", "--filter", f"publish={port}", "--format", "{{.ID}}"],
-                            capture_output=True, text=True
-                        )
-                        if result.stdout.strip() == "":
-                            return port
-                    except Exception:
-                        return port
-                except OSError:
-                    port += 1
-
-    def clear_omniboard_docker(self):
-        try:
-            # Remove all containers with name starting with 'omniboard_'
-            result = subprocess.run(
-                'docker ps -a --filter "name=omniboard_" --format "{{.ID}}"',
-                shell=True, capture_output=True, text=True
-            )
-            container_ids = result.stdout.strip().splitlines()
-            if not container_ids:
-                messagebox.showinfo("Docker", "No Omniboard containers to remove.")
-            else:
-                for cid in container_ids:
-                    subprocess.run(f"docker rm -f {cid}", shell=True)
-                messagebox.showinfo("Docker", "All Omniboard containers removed.")
-            
-            # Clear the info textbox
-            self.omniboard_info_text.configure(state="normal")
-            self.omniboard_info_text.delete("1.0", "end")
-            self.omniboard_info_text.configure(state="disabled")
-        except Exception as e:
-            messagebox.showerror("Docker Error", str(e))
-
     def launch_omniboard(self):
+        """Launch Omniboard in a Docker container for the selected database."""
         db_name = self.selected_db.get()
         if not db_name:
             messagebox.showerror("Error", "No database selected.")
             return
 
-        # Get deterministic port based on database name
-        preferred_port = self.port_for_db(db_name)
-        host_port = self.find_available_port(preferred_port)
-
-        # Determine MongoDB connection details based on mode
-        if self.connection_mode.get() == "Port":
-            port = self.port_var.get() or "27017"
-            mongo_host = "localhost"
-        else:  # Full URL mode
-            uri = self.get_mongo_uri()
-            mongo_host, port, _ = self.parse_mongo_url(uri)
-        
-        # Adjust host for Docker
-        if sys.platform.startswith("win") or sys.platform == "darwin":
-            if mongo_host in ["localhost", "127.0.0.1"]:
-                mongo_host = "host.docker.internal"
-        
-        mongo_arg = f"{mongo_host}:{port}:{db_name}"
-        container_name = f"omniboard_{uuid.uuid4().hex[:8]}"
-        docker_cmd = [
-            "docker", "run", "-it", "--rm", "-p", f"{host_port}:9000", "--name", container_name,
-            "vivekratnavel/omniboard", "-m", mongo_arg
-        ]
-
         try:
-            subprocess.Popen(docker_cmd)
+            # Get MongoDB connection details
+            mongo_host, mongo_port, _ = self.mongo_client.parse_connection_url()
+            
+            # Launch Omniboard
+            container_name, host_port = self.omniboard_manager.launch(
+                db_name=db_name,
+                mongo_host=mongo_host,
+                mongo_port=mongo_port
+            )
+            
             url = f"http://localhost:{host_port}"
             
-            # Update textbox with clickable links
+            # Update textbox with clickable link
             self.omniboard_info_text.configure(state="normal")
-            
-            # Insert text with clickable URL
             text_before = f"Omniboard for '{db_name}': "
             self.omniboard_info_text.insert("end", text_before)
             
@@ -367,59 +342,45 @@ class MongoApp(ctk.CTk):
             self.omniboard_info_text.insert("end", url)
             url_end = self.omniboard_info_text.index("end-1c")
             
-            # Apply both the visual 'link' tag and a unique URL tag
+            # Apply tags
             self.omniboard_info_text.tag_add("link", url_start, url_end)
             self.omniboard_info_text.tag_add(f"url_{url}", url_start, url_end)
             
             self.omniboard_info_text.insert("end", "\n")
             self.omniboard_info_text.configure(state="disabled")
             
-            # Open in browser after 2 second delay to allow Omniboard to start
-            self.after(2000, lambda: webbrowser.open(url))
+            # Open in browser after 4 second delay to allow Omniboard to fully start
+            self.after(4000, lambda: webbrowser.open(url))
         except Exception as e:
             messagebox.showerror("Launch Error", str(e))
+
+    def clear_omniboard_docker(self):
+        """Remove all Omniboard Docker containers."""
+        try:
+            count = self.omniboard_manager.clear_all_containers()
+            
+            if count == 0:
+                messagebox.showinfo("Docker", "No Omniboard containers to remove.")
+            else:
+                messagebox.showinfo("Docker", f"Removed {count} Omniboard container(s).")
+            
+            # Clear the info textbox
+            self.omniboard_info_text.configure(state="normal")
+            self.omniboard_info_text.delete("1.0", "end")
+            self.omniboard_info_text.configure(state="disabled")
+        except Exception as e:
+            messagebox.showerror("Docker Error", str(e))
 
     def on_link_click(self, event):
         """Handle clicks on hyperlinks in the textbox."""
         try:
-            # Get the index of the click
             index = self.omniboard_info_text.index(f"@{event.x},{event.y}")
-            # Get all tags at this position
             tags = self.omniboard_info_text.tag_names(index)
             
-            # Find the URL tag (starts with 'url_')
             for tag in tags:
                 if tag.startswith('url_'):
-                    url = tag[4:]  # Remove 'url_' prefix
+                    url = tag[4:]
                     webbrowser.open(url)
                     break
         except Exception:
             pass
-
-
-if __name__ == "__main__":
-    app = MongoApp()
-    app.mainloop()
-
-
-"""
-To turn this script into an executable:
-
-1. Install required packages:
-   pip install customtkinter pymongo pyinstaller
-
-2. From a terminal in this script's directory, run:
-   pyinstaller --onefile --windowed omniboard_launch_ctk.py
-
-   - The --windowed flag prevents a console window from appearing.
-   - The --onefile flag bundles everything into a single executable.
-
-3. The executable will be in the 'dist' folder.
-
-Notes:
-- PyInstaller will bundle customtkinter, pymongo and other imported modules automatically.
-- You do NOT need to install these packages separately on the target machine.
-- However, you DO need Docker installed and available on the target machine.
-- CustomTkinter provides a modern, dark-mode UI with smooth animations.
-- The appearance can be changed between "System", "Dark", and "Light" modes.
-"""
