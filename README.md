@@ -253,7 +253,6 @@ We welcome contributions! Please follow these guidelines:
 2. **Run tests and linting**
    ```bash
    pytest
-   # Add linting tools as configured
    ```
 
 3. **Commit your changes**
@@ -338,20 +337,11 @@ We welcome contributions! Please follow these guidelines:
 ### Release Process
 
 1. Update version in relevant files
-2. Update CHANGELOG.md with release notes
-3. Create a git tag: `git tag -a v1.0.0 -m "Release version 1.0.0"`
-4. Push tag: `git push origin v1.0.0`
-5. Build and publish release manually
+2. Create a git tag: `git tag -a v1.0.0 -m "Release version 1.0.0"`
+3. Push tag: `git push origin v1.0.0`
+4. Build and publish release manually (the tagged commit will only produce a draft release)
 
 ## License
 
 This project is licensed under the GNU General Public License v3.0 - see the [LICENSE](LICENSE) file for details.
 
----
-
-**Part of the DREAM/Altar Ecosystem**
-
-- [AltarDocker](../AltarDocker/): Docker deployment infrastructure
-- [AltarExtractor](../AltarExtractor/): Data extraction and visualization
-- [AltarSender](../AltarSender/): Experiment data submission
-- [Altar Documentation](../README.md): Main project documentation
