@@ -280,18 +280,6 @@ We welcome contributions! Please follow these guidelines:
    - Reference any related issues
    - Ensure all tests pass
 
-### Code Style
-
-- Follow PEP 8 conventions
-- Maximum line length: 100 characters
-- Use type hints where applicable
-- Document all public functions and classes
-
-### Reporting Issues
-
-- Use the [GitHub issue tracker](https://github.com/DreamRepo/Altar/issues)
-- Include Python version, OS, and steps to reproduce
-- Provide error messages and logs when applicable
 
 ## Troubleshooting
 
@@ -346,20 +334,6 @@ We welcome contributions! Please follow these guidelines:
 - Review [Omniboard documentation](https://vivekratnavel.github.io/omniboard/)
 - Contact the DREAM/Altar team
 
-## Versioning
-
-This project uses [Semantic Versioning](https://semver.org/) (SemVer):
-
-- **MAJOR** version for incompatible API changes
-- **MINOR** version for backwards-compatible functionality additions
-- **PATCH** version for backwards-compatible bug fixes
-- **-dev**, **-alpha**, **-beta** suffixes for pre-release versions
-
-### Current Version: 1.0.0-dev
-
-### Version History
-
-See [CHANGELOG.md](CHANGELOG.md) for detailed version history and release notes.
 
 ### Release Process
 
