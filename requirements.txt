@@ -1,2 +1,8 @@
-customtkinter==5.2.2
+# Core dependencies (shared)
 pymongo>=4.0.0
+
+# Web UI dependencies (Dash)
+dash>=2.14.0
+dash-bootstrap-components>=1.5.0
+flask>=3.0.0
+

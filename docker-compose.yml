@@ -1,0 +1,18 @@
+version: '3.8'
+
+services:
+  altarviewer:
+    build: .
+    container_name: altarviewer
+    ports:
+      - "8060:8060"
+    volumes:
+      # Mount Docker socket to allow spawning Omniboard containers
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      - PORT=8060
+      - DOCKER_MODE=true
+      - MONGO_DEFAULT_URL=mongodb://host.docker.internal:27017/
+      - MONGO_DEFAULT_HOST=host.docker.internal
+    restart: unless-stopped
+    # Uses the default Docker Compose network; no custom network required

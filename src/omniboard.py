@@ -5,11 +5,30 @@ import hashlib
 import uuid
 import sys
 import time
+import os
 from typing import List, Optional
 
 
 class OmniboardManager:
     """Manages Omniboard Docker containers."""
+    
+    @staticmethod
+    def is_running_in_docker() -> bool:
+        """Check if the application is running inside a Docker container.
+        
+        Returns:
+            True if running in Docker, False otherwise
+        """
+        # Check for Docker environment indicators
+        if os.path.exists('/.dockerenv'):
+            return True
+        if os.environ.get('DOCKER_MODE') == 'true':
+            return True
+        try:
+            with open('/proc/1/cgroup', 'rt') as f:
+                return 'docker' in f.read()
+        except:
+            return False
     
     @staticmethod
     def is_docker_running() -> bool:
@@ -19,10 +38,12 @@ class OmniboardManager:
             True if Docker is running, False otherwise
         """
         try:
+            creationflags = getattr(subprocess, "CREATE_NO_WINDOW", 0)
             result = subprocess.run(
                 ["docker", "info"],
                 capture_output=True,
-                timeout=5
+                timeout=5,
+                creationflags=creationflags,
             )
             return result.returncode == 0
         except (subprocess.TimeoutExpired, FileNotFoundError):
@@ -37,10 +58,12 @@ class OmniboardManager:
         """
         if sys.platform.startswith("win"):
             # Windows
+            creationflags = getattr(subprocess, "CREATE_NO_WINDOW", 0)
             subprocess.Popen(
                 ["powershell", "-Command", "Start-Process", "'C:\\Program Files\\Docker\\Docker\\Docker Desktop.exe'"],
                 stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL
+                stderr=subprocess.DEVNULL,
+                creationflags=creationflags,
             )
         elif sys.platform == "darwin":
             # macOS
@@ -69,11 +92,25 @@ class OmniboardManager:
     def ensure_docker_running():
         """Ensure Docker is running, start it if needed.
         
+        Skips check if running inside Docker (container mode).
+        
         Raises:
             Exception: If Docker cannot be started
         """
+        # Skip Docker checks if we're running inside a Docker container
+        if OmniboardManager.is_running_in_docker():
+            return
+
+        # For desktop usage we no longer try to auto-start Docker Desktop or
+        # poll repeatedly, as that caused a poor UX (flashing Docker console
+        # windows and long waits). Instead we simply check once and, if Docker
+        # is not available, raise a clear error so the UI can display a
+        # helpful message to the user.
         if not OmniboardManager.is_docker_running():
-            OmniboardManager.start_docker_desktop()
+            raise RuntimeError(
+                "Docker does not appear to be running. Please start Docker Desktop "
+                "(or the Docker daemon) and try again."
+            )
     
     @staticmethod
     def generate_port_for_database(db_name: str, base: int = 20000, span: int = 10000) -> int:
@@ -107,11 +144,13 @@ class OmniboardManager:
                     s.bind(("", port))
                     # Also check if Docker is using this port
                     try:
+                        creationflags = getattr(subprocess, "CREATE_NO_WINDOW", 0)
                         result = subprocess.run(
                             ["docker", "ps", "--filter", f"publish={port}", "--format", "{{.ID}}"],
                             capture_output=True,
                             text=True,
-                            timeout=5
+                            timeout=5,
+                            creationflags=creationflags,
                         )
                         if result.stdout.strip() == "":
                             return port
@@ -172,15 +211,22 @@ class OmniboardManager:
         container_name = f"omniboard_{uuid.uuid4().hex[:8]}"
         
         docker_cmd = [
-            "docker", "run", "-it", "--rm",
+            "docker", "run", "-d", "--rm",
             "-p", f"{host_port}:9000",
             "--name", container_name,
             "vivekratnavel/omniboard",
             "-m", mongo_arg
         ]
         
-        # Launch container
-        subprocess.Popen(docker_cmd)
+        # Launch container in detached mode
+        creationflags = getattr(subprocess, "CREATE_NO_WINDOW", 0)
+        subprocess.Popen(
+            docker_cmd,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            stdin=subprocess.DEVNULL,
+            creationflags=creationflags,
+        )
         
         return container_name, host_port
     
@@ -192,12 +238,14 @@ class OmniboardManager:
             List of container IDs
         """
         try:
+            creationflags = getattr(subprocess, "CREATE_NO_WINDOW", 0)
             result = subprocess.run(
                 'docker ps -a --filter "name=omniboard_" --format "{{.ID}}"',
                 shell=True,
                 capture_output=True,
                 text=True,
-                timeout=10
+                timeout=10,
+                creationflags=creationflags,
             )
             return result.stdout.strip().splitlines()
         except (subprocess.TimeoutExpired, FileNotFoundError):
@@ -216,10 +264,12 @@ class OmniboardManager:
         
         for cid in container_ids:
             try:
+                creationflags = getattr(subprocess, "CREATE_NO_WINDOW", 0)
                 subprocess.run(
                     f"docker rm -f {cid}",
                     shell=True,
-                    timeout=10
+                    timeout=10,
+                    creationflags=creationflags,
                 )
             except (subprocess.TimeoutExpired, FileNotFoundError):
                 pass

@@ -1,4 +1,5 @@
 """MongoDB client management."""
+import os
 from pymongo import MongoClient
 from typing import List, Optional
 from urllib.parse import urlparse
@@ -13,7 +14,7 @@ class MongoDBClient:
         self.uri: Optional[str] = None
     
     def connect_by_port(self, port: str = "27017") -> List[str]:
-        """Connect to MongoDB using localhost and port.
+        """Connect to MongoDB using default host and port.
         
         Args:
             port: MongoDB port number
@@ -24,7 +25,8 @@ class MongoDBClient:
         Raises:
             Exception: If connection fails
         """
-        self.uri = f"mongodb://localhost:{port}/"
+        default_host = os.environ.get("MONGO_DEFAULT_HOST", "localhost")
+        self.uri = f"mongodb://{default_host}:{port}/"
         return self._connect()
     
     def connect_by_url(self, url: str) -> List[str]:
