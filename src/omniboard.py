@@ -8,6 +8,8 @@ import time
 import os
 from typing import List, Optional
 
+from urllib.parse import urlparse, urlunparse
+
 
 class OmniboardManager:
     """Manages Omniboard Docker containers."""
@@ -173,13 +175,60 @@ class OmniboardManager:
             if mongo_host in ["localhost", "127.0.0.1"]:
                 return "host.docker.internal"
         return mongo_host
+
+    def _adjust_mongo_uri_for_docker(self, mongo_uri: str, db_name: Optional[str] = None) -> str:
+        """Adjust a full MongoDB URI for Docker networking when needed.
+
+        When connecting to a local MongoDB instance from a container on
+        Windows/macOS, we need to replace ``localhost``/``127.0.0.1`` with
+        ``host.docker.internal``. This helper performs that substitution
+        while preserving user info, port and query parameters. If a
+        ``db_name`` is provided, it is injected as the path component of
+        the URI (``/<db_name>``) so Omniboard connects to the selected
+        database, with any authentication or options remaining in the
+        query string.
+        """
+
+        try:
+            parsed = urlparse(mongo_uri)
+        except Exception:
+            # If parsing fails for any reason, fall back to the original
+            # URI rather than breaking Omniboard launch.
+            return mongo_uri
+
+        host = parsed.hostname
+        if not host:
+            return mongo_uri
+
+        adjusted_host = self.adjust_mongo_host_for_docker(host)
+
+        # Rebuild netloc preserving credentials and port
+        netloc = ""
+        if parsed.username:
+            netloc += parsed.username
+            if parsed.password:
+                netloc += f":{parsed.password}"
+            netloc += "@"
+
+        netloc += adjusted_host
+        if parsed.port:
+            netloc += f":{parsed.port}"
+
+        # Inject selected database into the path, if provided
+        path = parsed.path
+        if db_name:
+            path = f"/{db_name}"
+
+        new_parsed = parsed._replace(netloc=netloc, path=path)
+        return urlunparse(new_parsed)
     
     def launch(
         self,
         db_name: str,
         mongo_host: str,
         mongo_port: int,
-        host_port: Optional[int] = None
+        host_port: Optional[int] = None,
+        mongo_uri: Optional[str] = None,
     ) -> tuple[str, int]:
         """Launch an Omniboard Docker container.
         
@@ -203,11 +252,18 @@ class OmniboardManager:
             preferred_port = self.generate_port_for_database(db_name)
             host_port = self.find_available_port(preferred_port)
         
-        # Adjust host for Docker
-        docker_mongo_host = self.adjust_mongo_host_for_docker(mongo_host)
-        
-        # Build Docker command
-        mongo_arg = f"{docker_mongo_host}:{mongo_port}:{db_name}"
+        # Build Mongo connection argument for Omniboard. When a full
+        # MongoDB URI is available (typically for remote/Atlas-style
+        # deployments with authentication), reuse it so that credentials
+        # and options are preserved. Otherwise, fall back to the legacy
+        # host:port:db form for simple local setups.
+        if mongo_uri:
+            mongo_arg = self._adjust_mongo_uri_for_docker(mongo_uri, db_name=db_name)
+            mongo_flag = "--mu"  # Omniboard expects full URIs with --mu
+        else:
+            docker_mongo_host = self.adjust_mongo_host_for_docker(mongo_host)
+            mongo_arg = f"{docker_mongo_host}:{mongo_port}:{db_name}"
+            mongo_flag = "-m"     # host:port:database form
         container_name = f"omniboard_{uuid.uuid4().hex[:8]}"
         
         docker_cmd = [
@@ -215,7 +271,7 @@ class OmniboardManager:
             "-p", f"{host_port}:9000",
             "--name", container_name,
             "vivekratnavel/omniboard",
-            "-m", mongo_arg
+            mongo_flag, mongo_arg,
         ]
         
         # Launch container in detached mode
