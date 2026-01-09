@@ -7,8 +7,8 @@
 A graphical user interface application for launching and managing [Omniboard](https://vivekratnavel.github.io/omniboard/) instances to visualize and track MongoDB-backed experiments from the DREAM/Altar ecosystem.
 
 <div align="center">
-  <img src="assets/image_ctk.png" width="26%" />
-  <img src="assets/image_omniboard.png" width="70%" />
+  <img src="https://raw.githubusercontent.com/DreamRepo/AltarViewer/refs/heads/main/assets/image_ctk.png" width="26%" />
+  <img src="https://raw.githubusercontent.com/DreamRepo/AltarViewer/refs/heads/main/assets/image_omniboard.png" width="70%" />
 </div>
 
 ## Table of Contents
