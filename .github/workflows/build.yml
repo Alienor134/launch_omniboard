@@ -190,23 +190,41 @@ jobs:
           This release includes platform-specific launchers and a Docker image.
 
           ### Executables
+
+          Use these when running Omniboard Launcher directly on your machine:
+
           - Windows: `OmniboardLauncher.exe`
           - macOS: `OmniboardLauncher-macOS`
           - Linux: `OmniboardLauncher-Linux`
 
           ### Docker image
 
-          The Docker image is published to Docker Hub as:
+          The Docker image is published on Docker Hub as:
 
           ```bash
           docker pull ${{ secrets.DOCKERHUB_USERNAME }}/altarviewer:${{ github.ref_name }}
           ```
 
-          Run it with:
+          Run it with Docker so that the container can start Omniboard instances via the host Docker daemon:
 
           ```bash
-          docker run -p 8060:8060 ${{ secrets.DOCKERHUB_USERNAME }}/altarviewer:${{ github.ref_name }}
+          docker run -d \
+            -p 8060:8060 \
+            -v /var/run/docker.sock:/var/run/docker.sock \
+            -e MONGO_DEFAULT_URL="mongodb://<mongo-host>:27017/" \
+            --name altarviewer \
+            ${{ secrets.DOCKERHUB_USERNAME }}/altarviewer:${{ github.ref_name }}
           ```
+
+          #### Choosing `<mongo-host>`
+
+          Set `<mongo-host>` depending on where MongoDB is reachable *from inside the container*:
+
+          - `host.docker.internal` – when MongoDB runs on the same machine as Docker (Docker Desktop on Windows/macOS).
+          - `localhost` – when MongoDB runs on the same Linux host where the container is running, and port `27017` is bound on the host.
+          - A hostname or IP (for example `my-mongo.internal` or `10.0.0.5`) – when MongoDB is on another server or a managed service reachable over the network.
+
+          > Tip: If you use a MongoDB Atlas or other cloud URI, you can leave `MONGO_DEFAULT_URL` as-is and paste your full connection string in the **"MongoDB URL"** field inside the app instead.
         draft: true
         prerelease: false
       env:
