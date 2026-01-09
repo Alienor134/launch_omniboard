@@ -225,10 +225,11 @@ def register_callbacks(app):
          Output("launched-instances", "children", allow_duplicate=True)],
         Input("launch-btn", "n_clicks"),
         [State("selected-db-store", "data"),
-         State("launched-containers-store", "data")],
+         State("launched-containers-store", "data"),
+         State("connection-store", "data")],
         prevent_initial_call=True
     )
-    def launch_omniboard(n_clicks, selected_db, launched_containers):
+    def launch_omniboard(n_clicks, selected_db, launched_containers, connection_info):
         """Launch Omniboard container for selected database.
         """
         if not n_clicks or not selected_db:
@@ -238,11 +239,21 @@ def register_callbacks(app):
             # Get MongoDB connection details
             mongo_host, mongo_port, _ = mongo_client.parse_connection_url()
 
+            # For URL-based connections (e.g. Atlas / remote VM with
+            # authentication), reuse the full connection URI so that
+            # Omniboard can authenticate and honour any options. For the
+            # simple port-based mode we keep using host/port only so
+            # localhost mappings continue to work as before.
+            mongo_uri = None
+            if isinstance(connection_info, dict) and connection_info.get("mode") == "url":
+                mongo_uri = mongo_client.get_connection_uri()
+
             # Launch Omniboard (non-blocking, container starts in background)
             container_name, host_port = omniboard_manager.launch(
                 db_name=selected_db,
                 mongo_host=mongo_host,
-                mongo_port=mongo_port
+                mongo_port=mongo_port,
+                mongo_uri=mongo_uri,
             )
 
             # Add to launched containers list
