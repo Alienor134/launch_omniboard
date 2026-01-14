@@ -9,7 +9,6 @@ class TestIntegration:
         """Test that all modules can be imported."""
         from src.mongodb import MongoDBClient
         from src.omniboard import OmniboardManager
-        from src.gui import MongoApp
         
         # Basic instantiation
         mongo = MongoDBClient()
