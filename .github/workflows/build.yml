@@ -1,96 +1,28 @@
-name: Build and Release
+name: CI
 
 on:
   push:
     branches:
       - main
-      - web_app
-    tags:
-      - 'v*'
+      - gui
     paths-ignore:
-      - '**.md'
+      - '**/*.md'
       - 'LICENSE'
       - '.gitignore'
   pull_request:
     branches:
       - main
     paths-ignore:
-      - '**.md'
+      - '**/*.md'
       - 'LICENSE'
       - '.gitignore'
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
-  build-windows:
-    runs-on: windows-latest
-
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-
-    - name: Set up Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: '3.11'
-
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install -r requirements.txt
-        pip install -r requirements-dev.txt
-        pip install pyinstaller
-
-    - name: Run tests
-      run: |
-        python -m pytest tests/ -v --cov=src --cov-report=term-missing
-
-    - name: Build executable
-      run: |
-        pyinstaller OmniboardLauncher.spec
-
-    - name: Upload artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: OmniboardLauncher-Windows
-        path: dist/OmniboardLauncher.exe
-
-  build-macos:
-    runs-on: macos-latest
-
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-
-    - name: Set up Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: '3.11'
-
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install -r requirements.txt
-        pip install -r requirements-dev.txt
-        pip install pyinstaller
-
-    - name: Run tests
-      run: |
-        python -m pytest tests/ -v --cov=src --cov-report=term-missing
-
-    - name: Build executable
-      run: |
-        pyinstaller OmniboardLauncher.spec
-
-    - name: Upload artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: OmniboardLauncher-macOS
-        path: dist/OmniboardLauncher
-
-  build-linux:
+  test:
     runs-on: ubuntu-latest
 
     steps:
@@ -107,125 +39,7 @@ jobs:
         python -m pip install --upgrade pip
         pip install -r requirements.txt
         pip install -r requirements-dev.txt
-        pip install pyinstaller
 
     - name: Run tests
       run: |
         python -m pytest tests/ -v --cov=src --cov-report=term-missing
-
-    - name: Validate Docker Compose configuration
-      run: |
-        docker compose -f docker-compose.yml config
-
-    - name: Build Docker image
-      run: |
-        docker compose build
-
-    - name: Log in to Docker Hub
-      if: startsWith(github.ref, 'refs/tags/')
-      uses: docker/login-action@v3
-      with:
-        username: ${{ secrets.DOCKERHUB_USERNAME }}
-        password: ${{ secrets.DOCKERHUB_SECRET }}
-
-    - name: Build and push Docker image to Docker Hub
-      if: startsWith(github.ref, 'refs/tags/')
-      env:
-        IMAGE_NAME: ${{ secrets.DOCKERHUB_USERNAME }}/altarviewer
-      run: |
-        TAG=${GITHUB_REF#refs/tags/}
-        docker build -t $IMAGE_NAME:$TAG -t $IMAGE_NAME:latest .
-        docker push $IMAGE_NAME:$TAG
-        docker push $IMAGE_NAME:latest
-
-    - name: Build executable
-      run: |
-        pyinstaller OmniboardLauncher.spec
-
-    - name: Upload artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: OmniboardLauncher-Linux
-        path: dist/OmniboardLauncher
-
-  release:
-    if: startsWith(github.ref, 'refs/tags/')
-    needs: [build-windows, build-macos, build-linux]
-    runs-on: ubuntu-latest
-
-    steps:
-    - name: Download Windows artifact
-      uses: actions/download-artifact@v4
-      with:
-        name: OmniboardLauncher-Windows
-        path: ./windows
-
-    - name: Download macOS artifact
-      uses: actions/download-artifact@v4
-      with:
-        name: OmniboardLauncher-macOS
-        path: ./macos
-
-    - name: Download Linux artifact
-      uses: actions/download-artifact@v4
-      with:
-        name: OmniboardLauncher-Linux
-        path: ./linux
-
-    - name: Rename artifacts
-      run: |
-        mv ./macos/OmniboardLauncher ./macos/OmniboardLauncher-macOS
-        mv ./linux/OmniboardLauncher ./linux/OmniboardLauncher-Linux
-
-    - name: Create Release
-      uses: softprops/action-gh-release@v1
-      with:
-        files: |
-          ./windows/OmniboardLauncher.exe
-          ./macos/OmniboardLauncher-macOS
-          ./linux/OmniboardLauncher-Linux
-        body: |
-          ## Downloads
-
-          This release includes platform-specific launchers and a Docker image.
-
-          ### Executables
-
-          Use these when running Omniboard Launcher directly on your machine:
-
-          - Windows: `OmniboardLauncher.exe`
-          - macOS: `OmniboardLauncher-macOS`
-          - Linux: `OmniboardLauncher-Linux`
-
-          ### Docker image
-
-          The Docker image is published on Docker Hub as:
-
-          ```bash
-          docker pull ${{ secrets.DOCKERHUB_USERNAME }}/altarviewer:${{ github.ref_name }}
-          ```
-
-          Run it with Docker so that the container can start Omniboard instances via the host Docker daemon:
-
-          ```bash
-          docker run -d \
-            -p 8060:8060 \
-            -v /var/run/docker.sock:/var/run/docker.sock \
-            -e MONGO_DEFAULT_URL="mongodb://<mongo-host>:27017/" \
-            --name altarviewer \
-            ${{ secrets.DOCKERHUB_USERNAME }}/altarviewer:${{ github.ref_name }}
-          ```
-
-          #### Choosing `<mongo-host>`
-
-          Set `<mongo-host>` depending on where MongoDB is reachable *from inside the container*:
-
-          - `host.docker.internal` – when MongoDB runs on the same machine as Docker (Docker Desktop on Windows/macOS).
-          - `localhost` – when MongoDB runs on the same Linux host where the container is running, and port `27017` is bound on the host.
-          - A hostname or IP (for example `my-mongo.internal` or `10.0.0.5`) – when MongoDB is on another server or a managed service reachable over the network.
-
-          > Tip: If you use a MongoDB Atlas or other cloud URI, you can leave `MONGO_DEFAULT_URL` as-is and paste your full connection string in the **"MongoDB URL"** field inside the app instead.
-        draft: true
-        prerelease: false
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -98,11 +98,11 @@ Then start AltarViewer via option 1–3 and connect it to the MongoDB instance f
 
 1. **Launch the application** (using any install option above)
 
-2. **Open the web app**
-   - In your browser, go to [http://localhost:8060](http://localhost:8060) to reach the AltarViewer UI.
-
-3. **Connect to MongoDB**
-   - Enter your MongoDB host and port (default: `localhost:27017`)
+2. **Connect to MongoDB**
+   - Choose a connection mode:
+     - Port: enter your MongoDB port (default: `27017` for localhost)
+     - Full URI: paste a full MongoDB connection URI (works with Atlas, remote VMs, authentication, TLS and options)
+       - Example: `mongodb+srv://user:pass@my-cluster.mongodb.net/?retryWrites=true&w=majority`
    - Click "Connect" to list available databases
 
 4. **Select a database**
@@ -116,9 +116,14 @@ Then start AltarViewer via option 1–3 and connect it to the MongoDB instance f
 ### Configuration
 
 #### MongoDB Connection
+- **Connection Modes**:
+   - Port: quick local development; launches Omniboard with `-m host:port:database`
+   - Full URI: recommended for Atlas/remote; launches Omniboard with `--mu <uri-with-db>`
+      - The selected database is injected into the URI path before launching Omniboard, while preserving credentials and query parameters.
+      - Example constructed argument:
+         - `--mu "mongodb+srv://user:pass@MONGO_IP/DB_NAME?authsource=DB_NAME"`
 - **Default Port**: 27017
-- **Connection String**: Supports standard MongoDB URIs
-- **Authentication**: Configure in MongoDB settings (currently local connections)
+- **Authentication**: Supply credentials in your URI for Full URI mode
 
 #### Port Management
 - **Deterministic Port Assignment**: Ports are generated using a hash of the database name (base: 20000, range: 10000)
@@ -295,6 +300,26 @@ We welcome contributions! Please follow these guidelines:
 - Check Docker has sufficient resources allocated
 - Ensure port 9005+ are not in use by other applications
 - Try clearing old containers: Use the cleanup button in the app
+
+### Omniboard stuck on "Loading app..."
+
+**Common causes**:
+- The connection string used inside the container is missing the selected database
+- `localhost` from the host OS is unreachable from inside Docker (Windows/macOS)
+- Authentication failure or insufficient permissions on the selected database
+
+**What the app does**:
+- In Full URI mode, it injects the selected database into the URI and uses `--mu`, preserving credentials/options
+- On Windows/macOS, it maps `localhost` to `host.docker.internal` for container connectivity
+
+**What to check**:
+- Validate your URI with `mongosh` and ensure it has read access to the selected DB
+- Confirm the container is running, or use the cleanup button and relaunch
+- Give the container a few seconds after launch to initialize
+
+### Database list shows only one entry
+
+Some deployments (e.g., MongoDB Atlas or non-admin users) do not allow the `listDatabases` command. In that case, the app falls back to the database present in your connection URI so you can still launch Omniboard for it.
 
 ### Port Conflicts
 

@@ -1,0 +1,149 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install -r requirements-dev.txt
+        pip install pyinstaller
+
+    - name: Run tests
+      run: |
+        python -m pytest tests/ -v --cov=src --cov-report=term-missing
+
+    - name: Build executable
+      run: |
+        pyinstaller OmniboardLauncher.spec
+
+    - name: Upload artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: OmniboardLauncher-Windows
+        path: dist/OmniboardLauncher.exe
+
+  build-macos:
+    runs-on: macos-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install -r requirements-dev.txt
+        pip install pyinstaller
+
+    - name: Run tests
+      run: |
+        python -m pytest tests/ -v --cov=src --cov-report=term-missing
+
+    - name: Build executable
+      run: |
+        pyinstaller OmniboardLauncher.spec
+
+    - name: Upload artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: OmniboardLauncher-macOS
+        path: dist/OmniboardLauncher
+
+  build-linux:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install -r requirements-dev.txt
+        pip install pyinstaller
+
+    - name: Run tests
+      run: |
+        python -m pytest tests/ -v --cov=src --cov-report=term-missing
+
+    - name: Build executable
+      run: |
+        pyinstaller OmniboardLauncher.spec
+
+    - name: Upload artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: OmniboardLauncher-Linux
+        path: dist/OmniboardLauncher
+
+  release:
+    needs: [build-windows, build-macos, build-linux]
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Download Windows artifact
+      uses: actions/download-artifact@v4
+      with:
+        name: OmniboardLauncher-Windows
+        path: ./windows
+
+    - name: Download macOS artifact
+      uses: actions/download-artifact@v4
+      with:
+        name: OmniboardLauncher-macOS
+        path: ./macos
+
+    - name: Download Linux artifact
+      uses: actions/download-artifact@v4
+      with:
+        name: OmniboardLauncher-Linux
+        path: ./linux
+
+    - name: Rename artifacts
+      run: |
+        mv ./macos/OmniboardLauncher ./macos/OmniboardLauncher-macOS
+        mv ./linux/OmniboardLauncher ./linux/OmniboardLauncher-Linux
+
+    - name: Create Release
+      uses: softprops/action-gh-release@v1
+      with:
+        files: |
+          ./windows/OmniboardLauncher.exe
+          ./macos/OmniboardLauncher-macOS
+          ./linux/OmniboardLauncher-Linux
+        draft: true
+        prerelease: false
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

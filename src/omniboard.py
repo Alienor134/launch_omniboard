@@ -5,32 +5,12 @@ import hashlib
 import uuid
 import sys
 import time
-import os
 from typing import List, Optional
-
 from urllib.parse import urlparse, urlunparse
 
 
 class OmniboardManager:
     """Manages Omniboard Docker containers."""
-    
-    @staticmethod
-    def is_running_in_docker() -> bool:
-        """Check if the application is running inside a Docker container.
-        
-        Returns:
-            True if running in Docker, False otherwise
-        """
-        # Check for Docker environment indicators
-        if os.path.exists('/.dockerenv'):
-            return True
-        if os.environ.get('DOCKER_MODE') == 'true':
-            return True
-        try:
-            with open('/proc/1/cgroup', 'rt') as f:
-                return 'docker' in f.read()
-        except:
-            return False
     
     @staticmethod
     def is_docker_running() -> bool:
@@ -40,12 +20,10 @@ class OmniboardManager:
             True if Docker is running, False otherwise
         """
         try:
-            creationflags = getattr(subprocess, "CREATE_NO_WINDOW", 0)
             result = subprocess.run(
                 ["docker", "info"],
                 capture_output=True,
-                timeout=5,
-                creationflags=creationflags,
+                timeout=5
             )
             return result.returncode == 0
         except (subprocess.TimeoutExpired, FileNotFoundError):
@@ -60,12 +38,10 @@ class OmniboardManager:
         """
         if sys.platform.startswith("win"):
             # Windows
-            creationflags = getattr(subprocess, "CREATE_NO_WINDOW", 0)
             subprocess.Popen(
                 ["powershell", "-Command", "Start-Process", "'C:\\Program Files\\Docker\\Docker\\Docker Desktop.exe'"],
                 stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-                creationflags=creationflags,
+                stderr=subprocess.DEVNULL
             )
         elif sys.platform == "darwin":
             # macOS
@@ -94,25 +70,11 @@ class OmniboardManager:
     def ensure_docker_running():
         """Ensure Docker is running, start it if needed.
         
-        Skips check if running inside Docker (container mode).
-        
         Raises:
             Exception: If Docker cannot be started
         """
-        # Skip Docker checks if we're running inside a Docker container
-        if OmniboardManager.is_running_in_docker():
-            return
-
-        # For desktop usage we no longer try to auto-start Docker Desktop or
-        # poll repeatedly, as that caused a poor UX (flashing Docker console
-        # windows and long waits). Instead we simply check once and, if Docker
-        # is not available, raise a clear error so the UI can display a
-        # helpful message to the user.
         if not OmniboardManager.is_docker_running():
-            raise RuntimeError(
-                "Docker does not appear to be running. Please start Docker Desktop "
-                "(or the Docker daemon) and try again."
-            )
+            OmniboardManager.start_docker_desktop()
     
     @staticmethod
     def generate_port_for_database(db_name: str, base: int = 20000, span: int = 10000) -> int:
@@ -146,13 +108,11 @@ class OmniboardManager:
                     s.bind(("", port))
                     # Also check if Docker is using this port
                     try:
-                        creationflags = getattr(subprocess, "CREATE_NO_WINDOW", 0)
                         result = subprocess.run(
                             ["docker", "ps", "--filter", f"publish={port}", "--format", "{{.ID}}"],
                             capture_output=True,
                             text=True,
-                            timeout=5,
-                            creationflags=creationflags,
+                            timeout=5
                         )
                         if result.stdout.strip() == "":
                             return port
@@ -175,52 +135,6 @@ class OmniboardManager:
             if mongo_host in ["localhost", "127.0.0.1"]:
                 return "host.docker.internal"
         return mongo_host
-
-    def _adjust_mongo_uri_for_docker(self, mongo_uri: str, db_name: Optional[str] = None) -> str:
-        """Adjust a full MongoDB URI for Docker networking when needed.
-
-        When connecting to a local MongoDB instance from a container on
-        Windows/macOS, we need to replace ``localhost``/``127.0.0.1`` with
-        ``host.docker.internal``. This helper performs that substitution
-        while preserving user info, port and query parameters. If a
-        ``db_name`` is provided, it is injected as the path component of
-        the URI (``/<db_name>``) so Omniboard connects to the selected
-        database, with any authentication or options remaining in the
-        query string.
-        """
-
-        try:
-            parsed = urlparse(mongo_uri)
-        except Exception:
-            # If parsing fails for any reason, fall back to the original
-            # URI rather than breaking Omniboard launch.
-            return mongo_uri
-
-        host = parsed.hostname
-        if not host:
-            return mongo_uri
-
-        adjusted_host = self.adjust_mongo_host_for_docker(host)
-
-        # Rebuild netloc preserving credentials and port
-        netloc = ""
-        if parsed.username:
-            netloc += parsed.username
-            if parsed.password:
-                netloc += f":{parsed.password}"
-            netloc += "@"
-
-        netloc += adjusted_host
-        if parsed.port:
-            netloc += f":{parsed.port}"
-
-        # Inject selected database into the path, if provided
-        path = parsed.path
-        if db_name:
-            path = f"/{db_name}"
-
-        new_parsed = parsed._replace(netloc=netloc, path=path)
-        return urlunparse(new_parsed)
     
     def launch(
         self,
@@ -237,6 +151,9 @@ class OmniboardManager:
             mongo_host: MongoDB host
             mongo_port: MongoDB port
             host_port: Optional host port (will find available if not provided)
+            mongo_uri: Optional full MongoDB connection URI. When provided,
+                Omniboard will be launched with this URI (using --mu) and the
+                selected database will be injected into the URI path.
             
         Returns:
             Tuple of (container_name, host_port)
@@ -252,20 +169,20 @@ class OmniboardManager:
             preferred_port = self.generate_port_for_database(db_name)
             host_port = self.find_available_port(preferred_port)
         
-        # Build Mongo connection argument for Omniboard. When a full
-        # MongoDB URI is available (typically for remote/Atlas-style
-        # deployments with authentication), reuse it so that credentials
-        # and options are preserved. Otherwise, fall back to the legacy
-        # host:port:db form for simple local setups.
+        container_name = f"omniboard_{uuid.uuid4().hex[:8]}"
+
+        # Decide whether to use full URI or host:port:db form
         if mongo_uri:
+            # Build a Docker-adjusted URI and ensure DB is included in the path
             mongo_arg = self._adjust_mongo_uri_for_docker(mongo_uri, db_name=db_name)
-            mongo_flag = "--mu"  # Omniboard expects full URIs with --mu
+            mongo_flag = "--mu"
         else:
+            # Adjust host for Docker networking
             docker_mongo_host = self.adjust_mongo_host_for_docker(mongo_host)
             mongo_arg = f"{docker_mongo_host}:{mongo_port}:{db_name}"
-            mongo_flag = "-m"     # host:port:database form
-        container_name = f"omniboard_{uuid.uuid4().hex[:8]}"
-        
+            mongo_flag = "-m"
+
+        # Build Docker command (detached)
         docker_cmd = [
             "docker", "run", "-d", "--rm",
             "-p", f"{host_port}:9000",
@@ -274,14 +191,12 @@ class OmniboardManager:
             mongo_flag, mongo_arg,
         ]
         
-        # Launch container in detached mode
-        creationflags = getattr(subprocess, "CREATE_NO_WINDOW", 0)
+        # Launch container
         subprocess.Popen(
             docker_cmd,
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
             stdin=subprocess.DEVNULL,
-            creationflags=creationflags,
         )
         
         return container_name, host_port
@@ -294,14 +209,12 @@ class OmniboardManager:
             List of container IDs
         """
         try:
-            creationflags = getattr(subprocess, "CREATE_NO_WINDOW", 0)
             result = subprocess.run(
                 'docker ps -a --filter "name=omniboard_" --format "{{.ID}}"',
                 shell=True,
                 capture_output=True,
                 text=True,
-                timeout=10,
-                creationflags=creationflags,
+                timeout=10
             )
             return result.stdout.strip().splitlines()
         except (subprocess.TimeoutExpired, FileNotFoundError):
@@ -320,14 +233,53 @@ class OmniboardManager:
         
         for cid in container_ids:
             try:
-                creationflags = getattr(subprocess, "CREATE_NO_WINDOW", 0)
                 subprocess.run(
                     f"docker rm -f {cid}",
                     shell=True,
-                    timeout=10,
-                    creationflags=creationflags,
+                    timeout=10
                 )
             except (subprocess.TimeoutExpired, FileNotFoundError):
                 pass
         
         return len(container_ids)
+
+    def _adjust_mongo_uri_for_docker(self, mongo_uri: str, db_name: Optional[str] = None) -> str:
+        """Adjust a full MongoDB URI for Docker networking and inject DB name.
+
+        - On Windows/macOS, replace localhost/127.0.0.1 with host.docker.internal
+        - Ensure the selected database is present in the URI path
+        - Preserve credentials and query parameters
+        """
+        try:
+            parsed = urlparse(mongo_uri)
+        except Exception:
+            # If parsing fails, return original URI
+            return mongo_uri
+
+        host = parsed.hostname or ""
+        adjusted_host = self.adjust_mongo_host_for_docker(host)
+
+        # Reconstruct netloc with potential creds and port
+        userinfo = ""
+        if parsed.username:
+            userinfo += parsed.username
+            if parsed.password:
+                userinfo += f":{parsed.password}"
+            userinfo += "@"
+        port_part = f":{parsed.port}" if parsed.port else ""
+        netloc = f"{userinfo}{adjusted_host}{port_part}"
+
+        # Always set the path to the selected DB if provided
+        path = parsed.path or ""
+        if db_name:
+            path = f"/{db_name}"
+
+        adjusted = urlunparse((
+            parsed.scheme,
+            netloc,
+            path,
+            "",
+            parsed.query,
+            "",
+        ))
+        return adjusted
