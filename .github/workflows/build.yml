@@ -113,13 +113,6 @@ jobs:
       run: |
         python -m pytest tests/ -v --cov=src --cov-report=term-missing
 
-    - name: Validate Docker Compose configuration
-      run: |
-        docker compose -f docker-compose.yml config
-
-    - name: Build Docker image
-      run: |
-        docker compose build
 
     - name: Build executable
       run: |
@@ -167,6 +160,18 @@ jobs:
           ./windows/OmniboardLauncher.exe
           ./macos/OmniboardLauncher-macOS
           ./linux/OmniboardLauncher-Linux
+        body: |
+          ## Downloads
+
+          This release includes platform-specific launchers.
+          ### Executables
+
+          Use these when running Omniboard Launcher directly on your machine:
+
+          - Windows: `OmniboardLauncher.exe`
+          - macOS: `OmniboardLauncher-macOS`
+          - Linux: `OmniboardLauncher-Linux`
+
         draft: true
         prerelease: false
       env:

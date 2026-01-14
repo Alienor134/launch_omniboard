@@ -7,8 +7,8 @@
 A graphical user interface application for launching and managing [Omniboard](https://vivekratnavel.github.io/omniboard/) instances to visualize and track MongoDB-backed experiments from the DREAM/Altar ecosystem.
 
 <div align="center">
-  <img src="assets/image_ctk.png" width="26%" />
-  <img src="assets/image_omniboard.png" width="70%" />
+  <img src="https://raw.githubusercontent.com/DreamRepo/AltarViewer/refs/heads/main/assets/image_ctk.png" width="26%" />
+  <img src="https://raw.githubusercontent.com/DreamRepo/AltarViewer/refs/heads/main/assets/image_omniboard.png" width="70%" />
 </div>
 
 ## Table of Contents
@@ -20,6 +20,7 @@ A graphical user interface application for launching and managing [Omniboard](ht
   - [From Binary Release](#from-binary-release)
 - [Usage](#usage)
   - [Quick Start](#quick-start)
+   - [How it works](#how-it-works)
   - [Configuration](#configuration)
 - [Development](#development)
   - [Setting Up Development Environment](#setting-up-development-environment)
@@ -33,91 +34,74 @@ A graphical user interface application for launching and managing [Omniboard](ht
 
 ## Features
 
-- **MongoDB Connection Management**: Connect to local or remote MongoDB instances
-- **Database Discovery**: Automatically list all available databases
-- **One-Click Omniboard Launch**: Deploy Omniboard in isolated Docker containers
-- **Modern GUI**: Built with CustomTkinter for a clean, modern interface
-- **Docker Integration**: Automatic container management and cleanup
-- **Multi-Instance Support**: Run multiple Omniboard instances on different ports
-- **Deterministic Port Assignment**: Hash-based port generation preserves browser cookies per database
-- **Container Cleanup**: Easy removal of all Omniboard containers
+- **MongoDB Connection Management**: Connect to local, remote, or Atlas MongoDB instances (port or full URI)
+- **Database Discovery**: Automatically list available databases
+ - **Web UI**: Dash-based web application served in your browser
+ - **One-Click Omniboard Launch**: Starts Omniboard automatically (containerized)
+ - **Multi-Instance Support**: Run multiple Omniboard instances on different ports
+ - **Deterministic Port Assignment**: Hash-based port generation preserves browser cookies per database
+ - **Container Cleanup**: Clear all launched Omniboard instances with one button
+
 
 ## Installation
 
-### Prerequisites
+You can use any of these options:
 
-#### System Requirements
-- **Operating System**: Windows 10/11, macOS 10.14+, or Linux
-- **Python**: 3.8 or higher
-- **Docker Desktop**: Latest version ([Download](https://www.docker.com/products/docker-desktop/))
-- **MongoDB**: Running instance (local or remote)
+### Option 1 – Executable
 
-#### Verify Prerequisites
+Download the latest platform-specific launcher from the [AltarViewer releases](https://github.com/DreamRepo/AltarViewer/releases) and run it.
+
+### Option 2 – Python app
+
 ```bash
-# Check Python version
-python --version  # Should be 3.8+
+git clone https://github.com/DreamRepo/Altar.git
+cd Altar/AltarViewer
+python -m venv venv
 
-# Check Docker is running
-docker --version
-docker ps
+# Activate the venv (one of these)
+venv\Scripts\activate      # Windows
+source venv/bin/activate    # macOS/Linux
 
-# Check MongoDB is accessible
-mongosh --version  # or mongo --version
+pip install -r requirements.txt
+python -m src.main
 ```
 
-### From Source
+### Prerequisites
 
-1. **Clone the repository**
-   ```bash
-   git clone https://github.com/DreamRepo/Altar.git
-   cd Altar/AltarViewer
-   ```
+- Docker Desktop (Windows/macOS) or Docker Engine (Linux) — required for launching Omniboard automatically
+- Python 3.8+ (only required when running from source, see Option 2)
 
-2. **Create a virtual environment** (recommended)
-   ```bash
-   python -m venv venv
-   
-   # On Windows
-   venv\Scripts\activate
-   
-   # On macOS/Linux
-   source venv/bin/activate
-   ```
-
-3. **Install dependencies**
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-4. **Run the application**
-   ```bash
-   python src/main.py
-   ```
-
-### From Binary Release
-
-Download the latest executable from the [releases page](https://github.com/Alienor134/launch_omniboard/releases) and run directly. No Python installation required.
 
 ## Usage
 
-### Quick Start
+1. **Ensure Docker is running**
+   - Start Docker Desktop (Windows/macOS) or Docker daemon (Linux)
 
-1. **Launch the application**
-   ```bash
-   python src/main.py
-   ```
+2. **Start AltarViewer**
+   - Executable: double-click `OmniboardLauncher` (Windows: `OmniboardLauncher.exe`)
+   - From source: in a venv, run `python -m src.main`
 
-2. **Connect to MongoDB**
+3. **Open the web UI**
+   - Executable: your default browser opens automatically to `http://localhost:8060`
+   - From source: manually navigate to `http://localhost:8060` (or the port set by `PORT`)
+
+4. **Connect to MongoDB**
    - Enter your MongoDB host and port (default: `localhost:27017`)
    - Click "Connect" to list available databases
 
-3. **Select a database**
-   - Choose a database from the dropdown list
+5. **Select a database**
+   - Choose a database from the list
    - Click "Launch Omniboard"
 
-4. **Access Omniboard**
+6. **Access Omniboard**
    - A clickable link will appear in the interface
-   - Omniboard opens automatically in your default browser
+   - Click the link to open Omniboard in your browser (it starts in the background; refresh after a few seconds if it isn’t ready yet)
+
+### How it works
+
+- AltarViewer launches Omniboard automatically in the background. On desktop systems, Omniboard runs as a container orchestrated via the local Docker CLI.
+- Ports are assigned deterministically per database, so your browser keeps Omniboard preferences per database.
+- On Windows/macOS, when connecting to a local MongoDB from the container, `localhost` is transparently mapped to `host.docker.internal`.
 
 ### Configuration
 
@@ -195,9 +179,11 @@ Edit [OmniboardLauncher.spec](OmniboardLauncher.spec) to customize:
 AltarViewer/
 ├── src/
 │   ├── main.py          # Application entry point
-│   ├── gui.py           # GUI implementation (CustomTkinter)
+│   ├── app.py           # Dash app factory
+│   ├── layout.py        # Dash layout and components
+│   ├── callbacks.py     # Dash callbacks wiring UI to logic
 │   ├── mongodb.py       # MongoDB connection logic
-│   └── omniboard.py     # Docker/Omniboard management
+│   └── omniboard.py     # Omniboard launcher (uses Docker CLI)
 ├── tests/
 │   ├── conftest.py      # Pytest configuration
 │   ├── test_mongodb.py  # MongoDB tests
@@ -210,9 +196,9 @@ AltarViewer/
 
 ### Key Components
 
-- **GUI Layer** ([gui.py](src/gui.py)): CustomTkinter-based interface
+- **Web UI** ([app.py](src/app.py), [layout.py](src/layout.py), [callbacks.py](src/callbacks.py)): Dash-based interface
 - **MongoDB Layer** ([mongodb.py](src/mongodb.py)): Database connection and queries
-- **Omniboard Layer** ([omniboard.py](src/omniboard.py)): Docker container management with hash-based port assignment
+- **Omniboard Layer** ([omniboard.py](src/omniboard.py)): Omniboard launcher using the Docker CLI with hash-based port assignment
 - **Main Controller** ([main.py](src/main.py)): Application orchestration
 
 ### Port Assignment Algorithm
@@ -292,31 +278,24 @@ We welcome contributions! Please follow these guidelines:
 - Verify firewall settings allow connections
 - Check MongoDB logs for authentication issues
 
-### Docker Issues
-
-**Problem**: Docker-related errors when launching Omniboard
-
-**Solutions**:
-- Verify Docker Desktop is running: `docker ps`
-- Check Docker has sufficient resources allocated
-- Ensure port 9005+ are not in use by other applications
-- Try clearing old containers: Use the cleanup button in the app
-
 ### Port Conflicts
 
 **Problem**: "Port already in use" errors
 
 **Solutions**:
 - The application automatically finds the next available port if the preferred port is busy
-- Use the "Clear Omniboard Docker Containers" button to remove old containers
-- Manually check and stop containers:
-  ```bash
-  docker ps
-  docker stop <container_id>
-  ```
 - Check for other applications using ports 20000-29999
 
 **Note**: Each database consistently uses the same port (hash-based), allowing your browser to remember Omniboard customizations and preferences per database
+
+### Omniboard launch issues
+
+**Problem**: Omniboard fails to launch or the link does not open
+
+**Solutions**:
+- Ensure Docker is installed and running (Desktop on Windows/macOS, daemon on Linux)
+- Wait a few seconds and refresh; Omniboard starts in the background
+- Verify you can run `docker info` successfully in a terminal (optional check)
 
 ### Import Errors
 
