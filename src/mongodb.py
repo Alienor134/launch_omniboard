@@ -1,7 +1,10 @@
 """MongoDB client management."""
-from pymongo import MongoClient
+import os
 from typing import List, Optional
 from urllib.parse import urlparse
+
+from pymongo import MongoClient
+from pymongo.errors import OperationFailure
 
 
 class MongoDBClient:
@@ -13,7 +16,7 @@ class MongoDBClient:
         self.uri: Optional[str] = None
     
     def connect_by_port(self, port: str = "27017") -> List[str]:
-        """Connect to MongoDB using localhost and port.
+        """Connect to MongoDB using default host and port.
         
         Args:
             port: MongoDB port number
@@ -24,7 +27,8 @@ class MongoDBClient:
         Raises:
             Exception: If connection fails
         """
-        self.uri = f"mongodb://localhost:{port}/"
+        default_host = os.environ.get("MONGO_DEFAULT_HOST", "localhost")
+        self.uri = f"mongodb://{default_host}:{port}/"
         return self._connect()
     
     def connect_by_url(self, url: str) -> List[str]:
@@ -60,10 +64,36 @@ class MongoDBClient:
         """
         if self.client:
             self.client.close()
-        
+
         self.client = MongoClient(self.uri, serverSelectionTimeoutMS=3000)
-        databases = self.client.list_database_names()
-        return databases
+
+        try:
+            # Standard behaviour: attempt to list all databases. This
+            # requires appropriate permissions (typically admin-level).
+            return self.client.list_database_names()
+        except OperationFailure as exc:
+            # Some MongoDB deployments (Atlas / VM with non-admin users)
+            # do not allow the connected user to run the listDatabases
+            # command. In that case, fall back to the database specified in
+            # the connection URI (if any) instead of failing entirely.
+            message = str(exc).lower()
+            if "listdatabases" in message or "not authorized" in message:
+                _, _, database = self.parse_connection_url()
+                if database:
+                    return [database]
+            # For all other failures, or if no database is encoded in the
+            # URI, propagate the original error so the UI can show it.
+            raise
+
+    def get_connection_uri(self) -> Optional[str]:
+        """Return the current MongoDB connection URI, if any.
+
+        This is used by downstream components (e.g. Omniboard launcher)
+        when they need to reuse the exact connection string, including
+        credentials and options.
+        """
+
+        return self.uri
     
     def parse_connection_url(self) -> tuple[str, int, Optional[str]]:
         """Parse the current connection URL.
