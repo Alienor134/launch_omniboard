@@ -7,8 +7,8 @@
 A graphical user interface application for launching and managing [Omniboard](https://vivekratnavel.github.io/omniboard/) instances to visualize and track MongoDB-backed experiments from the DREAM/Altar ecosystem.
 
 <div align="center">
-  <img src="assets/image_ctk.png" width="26%" />
-  <img src="assets/image_omniboard.png" width="70%" />
+  <img src="https://raw.githubusercontent.com/DreamRepo/AltarViewer/refs/heads/main/assets/image_ctk.png" width="26%" />
+  <img src="https://raw.githubusercontent.com/DreamRepo/AltarViewer/refs/heads/main/assets/image_omniboard.png" width="70%" />
 </div>
 
 ## Table of Contents
@@ -31,12 +31,13 @@ A graphical user interface application for launching and managing [Omniboard](ht
 - [Versioning](#versioning)
 - [License](#license)
 
+docker --version
 ## Features
 
-- **MongoDB Connection Management**: Connect to local or remote MongoDB instances
-- **Database Discovery**: Automatically list all available databases
+- **MongoDB Connection Management**: Connect to local, remote, or Atlas MongoDB instances (port or full URI)
+- **Database Discovery**: Automatically list available databases
 - **One-Click Omniboard Launch**: Deploy Omniboard in isolated Docker containers
-- **Modern GUI**: Built with CustomTkinter for a clean, modern interface
+- **Web UI**: Dash-based web application served in your browser
 - **Docker Integration**: Automatic container management and cleanup
 - **Multi-Instance Support**: Run multiple Omniboard instances on different ports
 - **Deterministic Port Assignment**: Hash-based port generation preserves browser cookies per database
@@ -44,68 +45,58 @@ A graphical user interface application for launching and managing [Omniboard](ht
 
 ## Installation
 
-### Prerequisites
+You can use any of these options:
 
-#### System Requirements
-- **Operating System**: Windows 10/11, macOS 10.14+, or Linux
-- **Python**: 3.8 or higher
-- **Docker Desktop**: Latest version ([Download](https://www.docker.com/products/docker-desktop/))
-- **MongoDB**: Running instance (local or remote)
+### Option 1 – Executable
 
-#### Verify Prerequisites
+Download the latest platform-specific launcher from the [AltarViewer releases](https://github.com/DreamRepo/AltarViewer/releases) and run it.
+
+### Option 2 – Python app
+
 ```bash
-# Check Python version
-python --version  # Should be 3.8+
+git clone https://github.com/DreamRepo/Altar.git
+cd Altar/AltarViewer
+python -m venv venv
 
-# Check Docker is running
-docker --version
-docker ps
+# Activate the venv (one of these)
+venv\Scripts\activate      # Windows
+source venv/bin/activate    # macOS/Linux
 
-# Check MongoDB is accessible
-mongosh --version  # or mongo --version
+pip install -r requirements.txt
+python -m src.main
 ```
 
-### From Source
+### Option 3 – Docker image
 
-1. **Clone the repository**
-   ```bash
-   git clone https://github.com/DreamRepo/Altar.git
-   cd Altar/AltarViewer
-   ```
+```bash
+docker pull alienor134/altarviewer:latest
+docker run -d \
+  -p 8060:8060 \
+  -v /var/run/docker.sock:/var/run/docker.sock \
+  -e MONGO_DEFAULT_URL="mongodb://<mongo-host>:27017/" \
+  --name altarviewer \
+  alienor134/altarviewer:latest
+```
 
-2. **Create a virtual environment** (recommended)
-   ```bash
-   python -m venv venv
-   
-   # On Windows
-   venv\Scripts\activate
-   
-   # On macOS/Linux
-   source venv/bin/activate
-   ```
+Replace `<mongo-host>` with the host where MongoDB is reachable from the container (for example `host.docker.internal` on Docker Desktop).
 
-3. **Install dependencies**
-   ```bash
-   pip install -r requirements.txt
-   ```
+### Option 4 – Docker Compose (AltarDocker stack)
 
-4. **Run the application**
-   ```bash
-   python src/main.py
-   ```
+Use AltarDocker to spin up MongoDB and MinIO, then point AltarViewer to that MongoDB:
 
-### From Binary Release
+```bash
+git clone https://github.com/DreamRepo/AltarDocker.git
+cd AltarDocker
+docker compose -f docker-compose_default.yml up -d
+```
 
-Download the latest executable from the [releases page](https://github.com/Alienor134/launch_omniboard/releases) and run directly. No Python installation required.
+Then start AltarViewer via option 1–3 and connect it to the MongoDB instance from the stack (for example `mongodb://localhost:27017`).
 
 ## Usage
 
 ### Quick Start
 
-1. **Launch the application**
-   ```bash
-   python src/main.py
-   ```
+1. **Launch the application** (using any install option above)
 
 2. **Connect to MongoDB**
    - Choose a connection mode:
@@ -114,11 +105,11 @@ Download the latest executable from the [releases page](https://github.com/Alien
        - Example: `mongodb+srv://user:pass@my-cluster.mongodb.net/?retryWrites=true&w=majority`
    - Click "Connect" to list available databases
 
-3. **Select a database**
+4. **Select a database**
    - Choose a database from the dropdown list
    - Click "Launch Omniboard"
 
-4. **Access Omniboard**
+5. **Access Omniboard**
    - A clickable link will appear in the interface
    - Omniboard opens automatically in your default browser
 
