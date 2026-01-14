@@ -29,24 +29,19 @@ class TestOmniboardManager:
         port = manager.generate_port_for_database("test", base=5000, span=1000)
         assert 5000 <= port < 6000
     
-    def test_adjust_mongo_host_for_docker_localhost_windows(self):
-        """Test host adjustment for Windows/Mac localhost."""
+    def test_adjust_mongo_uri_injects_db_and_preserves_host(self):
+        """Ensure DB is injected into URI without rewriting host."""
         manager = OmniboardManager()
-        
-        if sys.platform.startswith("win") or sys.platform == "darwin":
-            assert manager.adjust_mongo_host_for_docker("localhost") == "host.docker.internal"
-            assert manager.adjust_mongo_host_for_docker("127.0.0.1") == "host.docker.internal"
-        else:
-            # On Linux, localhost stays as is
-            assert manager.adjust_mongo_host_for_docker("localhost") in ["localhost", "host.docker.internal"]
-    
-    def test_adjust_mongo_host_for_docker_remote(self):
-        """Test host adjustment for remote hosts."""
-        manager = OmniboardManager()
-        
-        # Remote hosts should not be changed
-        assert manager.adjust_mongo_host_for_docker("192.168.1.100") == "192.168.1.100"
-        assert manager.adjust_mongo_host_for_docker("mongo.example.com") == "mongo.example.com"
+        # Localhost example
+        uri = "mongodb://user:pass@localhost:27017/?replicaSet=rs0"
+        adjusted = manager._adjust_mongo_uri_for_docker(uri, db_name="mydb")
+        assert adjusted.startswith("mongodb://user:pass@localhost:27017/")
+        assert "/mydb" in adjusted
+        assert "replicaSet=rs0" in adjusted
+        # Remote host example
+        uri2 = "mongodb://user:pass@mongo.example.com:27017/"
+        adjusted2 = manager._adjust_mongo_uri_for_docker(uri2, db_name="abc")
+        assert "mongo.example.com:27017/abc" in adjusted2
     
     def test_find_available_port(self):
         """Test finding available port."""

@@ -7,7 +7,18 @@ a = Analysis(
     pathex=[],
     binaries=[],
     datas=[('assets/DataBase.ico', '.')],
-    hiddenimports=['customtkinter', 'pymongo', 'src.mongodb', 'src.omniboard', 'src.gui'],
+    hiddenimports=[
+        'customtkinter',
+        'pymongo',
+        'src.mongodb',
+        'src.omniboard',
+        'src.gui',
+        'src.prefs',
+        # Optional but recommended to ensure bundling when present
+        'keyring',
+        'dns',  # dnspython for mongodb+srv
+        'platformdirs',
+    ],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],

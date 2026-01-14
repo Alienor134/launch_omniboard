@@ -2,7 +2,7 @@
 from pymongo import MongoClient
 from pymongo.errors import OperationFailure
 from typing import List, Optional
-from urllib.parse import urlparse
+from urllib.parse import urlparse, parse_qs
 import importlib.util
 
 
@@ -86,6 +86,15 @@ class MongoDBClient:
                 _, _, database = self.parse_connection_url()
                 if database:
                     return [database]
+                # If no DB path was provided, try to infer from authSource
+                try:
+                    parsed = urlparse(self.uri or "")
+                    params = parse_qs(parsed.query)
+                    auth_source = params.get("authSource", [None])[0]
+                    if auth_source:
+                        return [auth_source]
+                except Exception:
+                    pass
             # Otherwise, re-raise the original error
             raise
     

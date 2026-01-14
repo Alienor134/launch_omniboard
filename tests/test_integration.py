@@ -41,6 +41,5 @@ class TestIntegration:
         assert isinstance(preferred_port, int)
         assert 20000 <= preferred_port < 30000
         
-        # Simulate host adjustment
-        docker_host = omni.adjust_mongo_host_for_docker(host)
-        assert docker_host in ["localhost", "host.docker.internal"]
+        # No host adjustment is performed anymore; use host as-is
+        assert host == "localhost"
