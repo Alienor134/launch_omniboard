@@ -294,6 +294,13 @@ class MongoApp(ctk.CTk):
                     "MongoDB authentication failed.\n\n"
                     "Please check your username and password in the connection URL."
                 )
+            elif "dnspython" in error_msg.lower() or ("mongodb+srv" in error_msg.lower() and "dns" in error_msg.lower()):
+                friendly_msg = (
+                    "SRV connection detected but 'dnspython' is not installed.\n\n"
+                    "To use URIs starting with 'mongodb+srv://', please install dnspython:\n"
+                    "pip install dnspython\n\n"
+                    "Alternatively, use a standard 'mongodb://' URI with explicit host and port."
+                )
             else:
                 friendly_msg = f"Connection Error:\n\n{error_msg}"
             

@@ -185,7 +185,7 @@ class OmniboardManager:
         # Build Docker command (detached)
         docker_cmd = [
             "docker", "run", "-d", "--rm",
-            "-p", f"{host_port}:9000",
+            "-p", f"127.0.0.1:{host_port}:9000",
             "--name", container_name,
             "vivekratnavel/omniboard",
             mongo_flag, mongo_arg,
@@ -210,11 +210,18 @@ class OmniboardManager:
         """
         try:
             result = subprocess.run(
-                'docker ps -a --filter "name=omniboard_" --format "{{.ID}}"',
-                shell=True,
+                [
+                    "docker",
+                    "ps",
+                    "-a",
+                    "--filter",
+                    "name=omniboard_",
+                    "--format",
+                    "{{.ID}}",
+                ],
                 capture_output=True,
                 text=True,
-                timeout=10
+                timeout=10,
             )
             return result.stdout.strip().splitlines()
         except (subprocess.TimeoutExpired, FileNotFoundError):
@@ -234,9 +241,8 @@ class OmniboardManager:
         for cid in container_ids:
             try:
                 subprocess.run(
-                    f"docker rm -f {cid}",
-                    shell=True,
-                    timeout=10
+                    ["docker", "rm", "-f", cid],
+                    timeout=10,
                 )
             except (subprocess.TimeoutExpired, FileNotFoundError):
                 pass
