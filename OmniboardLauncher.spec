@@ -9,6 +9,9 @@ a = Analysis(
     datas=[('assets/DataBase.ico', '.')],
     hiddenimports=[
         'customtkinter',
+        'tkinter',
+        'darkdetect',
+        'PIL',
         'pymongo',
         'src.mongodb',
         'src.omniboard',
