@@ -99,11 +99,14 @@ Then start AltarViewer via option 1–3 and connect it to the MongoDB instance f
 1. **Launch the application** (using any install option above)
 
 2. **Connect to MongoDB**
-   - Choose a connection mode:
-     - Port: enter your MongoDB port (default: `27017` for localhost)
-     - Full URI: paste a full MongoDB connection URI (works with Atlas, remote VMs, authentication, TLS and options)
-       - Example: `mongodb+srv://user:pass@my-cluster.mongodb.net/?retryWrites=true&w=majority`
-   - Click "Connect" to list available databases
+    - Choose a connection mode:
+       - Port: enter your MongoDB port (default: `27017` for localhost)
+       - Full URI: paste a full MongoDB connection URI (works with Atlas, remote VMs, authentication, TLS and options)
+          - Security note: do not paste passwords here. Prefer the "Credential URI" tab to avoid storing secrets in plain text.
+          - Example: `mongodb+srv://user:pass@my-cluster.mongodb.net/?retryWrites=true&w=majority`
+       - Credential URI: paste a credential-less URI (e.g., `mongodb://host:27017/yourdb`) and enter username/password separately
+          - Optionally save your password securely using the OS keyring
+    - Click "Connect" to list available databases
 
 4. **Select a database**
    - Choose a database from the dropdown list
@@ -118,10 +121,14 @@ Then start AltarViewer via option 1–3 and connect it to the MongoDB instance f
 #### MongoDB Connection
 - **Connection Modes**:
    - Port: quick local development; launches Omniboard with `-m host:port:database`
+     - On Windows/macOS (Docker Desktop), if you connect to `localhost`/`127.0.0.1`, the app maps it to `host.docker.internal` so the container can reach your host MongoDB.
    - Full URI: recommended for Atlas/remote; launches Omniboard with `--mu <uri-with-db>`
       - The selected database is injected into the URI path before launching Omniboard, while preserving credentials and query parameters.
       - Example constructed argument:
          - `--mu "mongodb+srv://user:pass@MONGO_IP/DB_NAME?authsource=DB_NAME"`
+      - For security, the app does not persist Full URI values between sessions.
+   - Credential URI: enter a credential-less URI and provide username/password separately
+      - Passwords are stored only in the OS keyring if you opt in; they are never written to disk
 - **Default Port**: 27017
 - **Authentication**: Supply credentials in your URI for Full URI mode
 
@@ -196,7 +203,8 @@ AltarViewer/
 │   ├── main.py          # Application entry point
 │   ├── gui.py           # GUI implementation (CustomTkinter)
 │   ├── mongodb.py       # MongoDB connection logic
-│   └── omniboard.py     # Docker/Omniboard management
+│   ├── omniboard.py     # Docker/Omniboard management
+│   └── prefs.py         # Secure preferences (JSON + OS keyring)
 ├── tests/
 │   ├── conftest.py      # Pytest configuration
 │   ├── test_mongodb.py  # MongoDB tests
@@ -300,6 +308,11 @@ We welcome contributions! Please follow these guidelines:
 - Check Docker has sufficient resources allocated
 - Ensure port 9005+ are not in use by other applications
 - Try clearing old containers: Use the cleanup button in the app
+ - If using the packaged EXE, ensure the Docker CLI is on PATH or installed in the default location. The app resolves common Docker paths but may fail if the CLI is missing.
+ - On slower machines, Docker initialization can take >30s after launch; the app now waits up to 60s, but if you still see “Docker not running”, retry once Docker is fully ready.
+ - The app does not auto-start Docker on any OS. Please start Docker Desktop (or the Docker service) manually, wait for it to be ready, and then launch Omniboard.
+
+Note: The app does not rewrite hosts (e.g., no host.docker.internal mapping). It uses the host you provide as-is.
 
 ### Omniboard stuck on "Loading app..."
 
@@ -310,7 +323,6 @@ We welcome contributions! Please follow these guidelines:
 
 **What the app does**:
 - In Full URI mode, it injects the selected database into the URI and uses `--mu`, preserving credentials/options
-- On Windows/macOS, it maps `localhost` to `host.docker.internal` for container connectivity
 
 **What to check**:
 - Validate your URI with `mongosh` and ensure it has read access to the selected DB
@@ -345,6 +357,17 @@ Some deployments (e.g., MongoDB Atlas or non-admin users) do not allow the `list
 - Reinstall dependencies: `pip install -r requirements.txt`
 - Ensure virtual environment is activated
 - Check Python version compatibility (3.8+)
+
+### Keyring not available or password not remembered
+
+If the "Save password securely" option is disabled or your password does not reappear:
+- Ensure the `keyring` package is installed in your environment: `pip install keyring`
+- On Linux, ensure you have a supported keyring backend (e.g., gnome-keyring/Secret Service or KWallet) and a running session
+- The app never writes passwords to disk; they are stored only in the OS keychain when this option is enabled
+
+### Preferences file shows up when building/running from repo
+
+Older versions saved preferences at `~/.altarviewer_config.json`, which could be affected if the `HOME` environment variable was overridden (e.g., by certain shells/tools) while running inside a repository folder. The app now stores preferences in the standard OS config location (e.g., `%APPDATA%\AltarViewer\config.json` on Windows) using `platformdirs`, so it no longer depends on the current working directory or `HOME`. Existing legacy configs are read for compatibility but new saves go to the stable location.
 
 ### Getting Help
 

@@ -9,13 +9,15 @@ a = Analysis(
     datas=[('assets/DataBase.ico', '.')],
     hiddenimports=[
         'customtkinter',
-        'tkinter',
-        'darkdetect',
-        'PIL',
         'pymongo',
         'src.mongodb',
         'src.omniboard',
         'src.gui',
+        'src.prefs',
+        # Optional but recommended to ensure bundling when present
+        'keyring',
+        'dns',  # dnspython for mongodb+srv
+        'platformdirs',
     ],
     hookspath=[],
     hooksconfig={},
