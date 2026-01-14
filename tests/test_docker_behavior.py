@@ -1,6 +1,9 @@
 """Tests for Docker detection and GUI behavior regarding manual start requirement."""
+import os
+import sys
 import subprocess
 import types
+import pytest
 
 from src.omniboard import OmniboardManager
 
@@ -59,6 +62,8 @@ def test_is_docker_running_fallback_info(monkeypatch):
     assert OmniboardManager.is_docker_running() is True
 
 
+@pytest.mark.skipif(os.environ.get("DISPLAY") is None and not sys.platform.startswith("win"),
+                    reason="Tk requires a display; skip on headless CI")
 def test_gui_does_not_autostart(monkeypatch):
     """GUI should not auto-start Docker; it should prompt the user and return."""
     from src.gui import MongoApp
