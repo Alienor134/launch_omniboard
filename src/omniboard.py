@@ -6,6 +6,7 @@ import uuid
 import sys
 import time
 from typing import List, Optional
+from urllib.parse import urlparse, urlunparse
 
 
 class OmniboardManager:
@@ -140,7 +141,8 @@ class OmniboardManager:
         db_name: str,
         mongo_host: str,
         mongo_port: int,
-        host_port: Optional[int] = None
+        host_port: Optional[int] = None,
+        mongo_uri: Optional[str] = None,
     ) -> tuple[str, int]:
         """Launch an Omniboard Docker container.
         
@@ -149,6 +151,9 @@ class OmniboardManager:
             mongo_host: MongoDB host
             mongo_port: MongoDB port
             host_port: Optional host port (will find available if not provided)
+            mongo_uri: Optional full MongoDB connection URI. When provided,
+                Omniboard will be launched with this URI (using --mu) and the
+                selected database will be injected into the URI path.
             
         Returns:
             Tuple of (container_name, host_port)
@@ -164,23 +169,35 @@ class OmniboardManager:
             preferred_port = self.generate_port_for_database(db_name)
             host_port = self.find_available_port(preferred_port)
         
-        # Adjust host for Docker
-        docker_mongo_host = self.adjust_mongo_host_for_docker(mongo_host)
-        
-        # Build Docker command
-        mongo_arg = f"{docker_mongo_host}:{mongo_port}:{db_name}"
         container_name = f"omniboard_{uuid.uuid4().hex[:8]}"
-        
+
+        # Decide whether to use full URI or host:port:db form
+        if mongo_uri:
+            # Build a Docker-adjusted URI and ensure DB is included in the path
+            mongo_arg = self._adjust_mongo_uri_for_docker(mongo_uri, db_name=db_name)
+            mongo_flag = "--mu"
+        else:
+            # Adjust host for Docker networking
+            docker_mongo_host = self.adjust_mongo_host_for_docker(mongo_host)
+            mongo_arg = f"{docker_mongo_host}:{mongo_port}:{db_name}"
+            mongo_flag = "-m"
+
+        # Build Docker command (detached)
         docker_cmd = [
-            "docker", "run", "-it", "--rm",
+            "docker", "run", "-d", "--rm",
             "-p", f"{host_port}:9000",
             "--name", container_name,
             "vivekratnavel/omniboard",
-            "-m", mongo_arg
+            mongo_flag, mongo_arg,
         ]
         
         # Launch container
-        subprocess.Popen(docker_cmd)
+        subprocess.Popen(
+            docker_cmd,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            stdin=subprocess.DEVNULL,
+        )
         
         return container_name, host_port
     
@@ -225,3 +242,44 @@ class OmniboardManager:
                 pass
         
         return len(container_ids)
+
+    def _adjust_mongo_uri_for_docker(self, mongo_uri: str, db_name: Optional[str] = None) -> str:
+        """Adjust a full MongoDB URI for Docker networking and inject DB name.
+
+        - On Windows/macOS, replace localhost/127.0.0.1 with host.docker.internal
+        - Ensure the selected database is present in the URI path
+        - Preserve credentials and query parameters
+        """
+        try:
+            parsed = urlparse(mongo_uri)
+        except Exception:
+            # If parsing fails, return original URI
+            return mongo_uri
+
+        host = parsed.hostname or ""
+        adjusted_host = self.adjust_mongo_host_for_docker(host)
+
+        # Reconstruct netloc with potential creds and port
+        userinfo = ""
+        if parsed.username:
+            userinfo += parsed.username
+            if parsed.password:
+                userinfo += f":{parsed.password}"
+            userinfo += "@"
+        port_part = f":{parsed.port}" if parsed.port else ""
+        netloc = f"{userinfo}{adjusted_host}{port_part}"
+
+        # Always set the path to the selected DB if provided
+        path = parsed.path or ""
+        if db_name:
+            path = f"/{db_name}"
+
+        adjusted = urlunparse((
+            parsed.scheme,
+            netloc,
+            path,
+            "",
+            parsed.query,
+            "",
+        ))
+        return adjusted

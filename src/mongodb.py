@@ -1,5 +1,6 @@
 """MongoDB client management."""
 from pymongo import MongoClient
+from pymongo.errors import OperationFailure
 from typing import List, Optional
 from urllib.parse import urlparse
 
@@ -62,8 +63,21 @@ class MongoDBClient:
             self.client.close()
         
         self.client = MongoClient(self.uri, serverSelectionTimeoutMS=3000)
-        databases = self.client.list_database_names()
-        return databases
+        try:
+            # Standard behaviour: attempt to list all databases. This
+            # requires appropriate permissions (typically admin-level).
+            return self.client.list_database_names()
+        except OperationFailure as exc:
+            # Some deployments (Atlas/VM with non-admin user) forbid
+            # listDatabases. Fall back to the database inside the URI
+            # so the GUI can proceed with selection and Omniboard launch.
+            msg = str(exc).lower()
+            if "listdatabases" in msg or "not authorized" in msg or "command listdatabases" in msg:
+                _, _, database = self.parse_connection_url()
+                if database:
+                    return [database]
+            # Otherwise, re-raise the original error
+            raise
     
     def parse_connection_url(self) -> tuple[str, int, Optional[str]]:
         """Parse the current connection URL.
@@ -81,6 +95,10 @@ class MongoDBClient:
         database = database if database else None  # Convert empty string to None
         
         return host, port, database
+    
+    def get_connection_uri(self) -> Optional[str]:
+        """Return the current MongoDB connection URI (if any)."""
+        return self.uri
     
     def close(self):
         """Close the MongoDB connection."""

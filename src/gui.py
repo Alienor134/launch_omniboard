@@ -3,8 +3,13 @@ import customtkinter as ctk
 from tkinter import messagebox
 import webbrowser
 
-from mongodb import MongoDBClient
-from omniboard import OmniboardManager
+# Support both package imports (tests, python -m) and direct script runs
+try:
+    from .mongodb import MongoDBClient
+    from .omniboard import OmniboardManager
+except ImportError:
+    from mongodb import MongoDBClient
+    from omniboard import OmniboardManager
 
 # Set appearance mode and color theme
 ctk.set_appearance_mode("dark")
@@ -70,7 +75,7 @@ class MongoApp(ctk.CTk):
         # Connection mode selector
         self.mode_selector = ctk.CTkSegmentedButton(
             self.connection_frame,
-            values=["Port", "Full URL"],
+            values=["Port", "Full URI"],
             variable=self.connection_mode,
             command=self.on_connection_mode_change
         )
@@ -87,8 +92,8 @@ class MongoApp(ctk.CTk):
         )
         self.port_entry.grid(row=2, column=1, padx=(5, 10), pady=5, sticky="w")
 
-        # MongoDB URL entry (initially hidden)
-        self.url_label = ctk.CTkLabel(self.connection_frame, text="MongoDB URL:")
+        # MongoDB URI entry (initially hidden)
+        self.url_label = ctk.CTkLabel(self.connection_frame, text="MongoDB URI:")
         self.url_entry = ctk.CTkEntry(
             self.connection_frame,
             textvariable=self.mongo_url_var,
@@ -200,13 +205,13 @@ class MongoApp(ctk.CTk):
                                           lambda e: self.omniboard_info_text.configure(cursor=""))
 
     def on_connection_mode_change(self, value):
-        """Toggle between Port and Full URL input modes."""
+        """Toggle between Port and Full URI input modes."""
         if value == "Port":
             self.port_label.grid(row=2, column=0, padx=(10, 5), pady=5, sticky="w")
             self.port_entry.grid(row=2, column=1, padx=(5, 10), pady=5, sticky="w")
             self.url_label.grid_remove()
             self.url_entry.grid_remove()
-        else:  # Full URL
+        else:  # Full URI
             self.port_label.grid_remove()
             self.port_entry.grid_remove()
             self.url_label.grid(row=2, column=0, padx=(10, 5), pady=5, sticky="w")
@@ -230,7 +235,7 @@ class MongoApp(ctk.CTk):
             else:
                 url = self.mongo_url_var.get().strip()
                 if not url:
-                    messagebox.showerror("Error", "Please provide a valid MongoDB URL.")
+                    messagebox.showerror("Error", "Please provide a valid MongoDB URI.")
                     self.selected_label.configure(text="Connection failed")
                     return
                 dbs = self.mongo_client.connect_by_url(url)
@@ -322,12 +327,20 @@ class MongoApp(ctk.CTk):
         try:
             # Get MongoDB connection details
             mongo_host, mongo_port, _ = self.mongo_client.parse_connection_url()
-            
+            # When using a full URI, reuse it so Omniboard can authenticate and
+            # honour any URI options. We'll inject the selected DB downstream.
+            mongo_uri = None
+            if self.connection_mode.get() == "Full URI":
+                # Access the current connection URI if available
+                if hasattr(self.mongo_client, "get_connection_uri"):
+                    mongo_uri = self.mongo_client.get_connection_uri()
+
             # Launch Omniboard
             container_name, host_port = self.omniboard_manager.launch(
                 db_name=db_name,
                 mongo_host=mongo_host,
-                mongo_port=mongo_port
+                mongo_port=mongo_port,
+                mongo_uri=mongo_uri,
             )
             
             url = f"http://localhost:{host_port}"
@@ -349,8 +362,8 @@ class MongoApp(ctk.CTk):
             self.omniboard_info_text.insert("end", "\n")
             self.omniboard_info_text.configure(state="disabled")
             
-            # Open in browser after 4 second delay to allow Omniboard to fully start
-            self.after(4000, lambda: webbrowser.open(url))
+            # Open in browser after a short delay to allow Omniboard to fully start
+            self.after(6000, lambda: webbrowser.open(url))
         except Exception as e:
             messagebox.showerror("Launch Error", str(e))
 
