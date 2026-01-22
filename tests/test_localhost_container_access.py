@@ -61,3 +61,24 @@ def test_port_mode_keeps_remote_hosts(monkeypatch):
     assert args is not None
     idx = args.index("-m")
     assert args[idx + 1] == "mongo.example.com:27018:db2"
+
+
+def test_port_mode_maps_localhost_on_linux(monkeypatch):
+    recorded = _capture_popen(monkeypatch)
+    monkeypatch.setattr(OmniboardManager, "ensure_docker_running", lambda self: None)
+    monkeypatch.setattr(sys, "platform", "linux", raising=False)
+
+    m = OmniboardManager()
+    m.launch(
+        db_name="ldb",
+        mongo_host="localhost",
+        mongo_port=27017,
+        host_port=25003,
+        mongo_uri=None,
+    )
+
+    args = recorded["args"]
+    assert args is not None
+    idx = args.index("-m")
+    # On Linux we expect the Docker bridge gateway IP
+    assert args[idx + 1].startswith("172.17.0.1:27017:")

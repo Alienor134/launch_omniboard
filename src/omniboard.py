@@ -206,11 +206,16 @@ class OmniboardManager:
             mongo_arg = self._adjust_mongo_uri_for_docker(mongo_uri, db_name=db_name)
             mongo_flag = "--mu"
         else:
-            # Port mode: if user connected to localhost on a Desktop platform,
-            # containers cannot reach the host via 127.0.0.1; use host.docker.internal.
+            # Port mode: when connecting to a MongoDB running on the host,
+            # containers cannot reach the host via 127.0.0.1.
+            # Use host.docker.internal on Windows/macOS and the default Docker
+            # bridge gateway (172.17.0.1) on Linux.
             host_for_container = mongo_host
-            if mongo_host in ("localhost", "127.0.0.1") and (sys.platform.startswith("win") or sys.platform == "darwin"):
-                host_for_container = "host.docker.internal"
+            if mongo_host in ("localhost", "127.0.0.1"):
+                if sys.platform.startswith("linux"):
+                    host_for_container = "172.17.0.1"
+                else:
+                    host_for_container = "host.docker.internal"
             mongo_arg = f"{host_for_container}:{mongo_port}:{db_name}"
             mongo_flag = "-m"
 

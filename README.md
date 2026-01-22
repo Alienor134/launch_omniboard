@@ -2,7 +2,7 @@
 
 [![Python Version](https://img.shields.io/badge/python-3.8%2B-blue.svg)](https://www.python.org/downloads/)
 [![License](https://img.shields.io/badge/license-GPL%20v3-blue.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-1.0.0--dev-orange.svg)](https://github.com/Alienor134/launch_omniboard/releases)
+[![Release](https://img.shields.io/github/v/release/DreamRepo/AltarViewer?include_prereleases&sort=semver)](https://github.com/DreamRepo/AltarViewer/releases)
 
 A graphical user interface application for launching and managing [Omniboard](https://vivekratnavel.github.io/omniboard/) instances to visualize and track MongoDB-backed experiments from the DREAM/Altar ecosystem.
 
@@ -15,9 +15,9 @@ A graphical user interface application for launching and managing [Omniboard](ht
 
 - [Features](#features)
 - [Installation](#installation)
-  - [Prerequisites](#prerequisites)
-  - [From Source](#from-source)
-  - [From Binary Release](#from-binary-release)
+   - [Prerequisites](#prerequisites)
+   - [From Binary Release](#from-binary-release)
+   - [From Source](#from-source)
 - [Usage](#usage)
   - [Quick Start](#quick-start)
   - [Configuration](#configuration)
@@ -31,7 +31,6 @@ A graphical user interface application for launching and managing [Omniboard](ht
 - [Versioning](#versioning)
 - [License](#license)
 
-docker --version
 ## Features
 
 - **MongoDB Connection Management**: Connect to local, remote, or Atlas MongoDB instances (port or full URI)
@@ -47,11 +46,45 @@ docker --version
 
 You can use any of these options:
 
-### Option 1 – Executable
+### From Binary Release
 
-Download the latest platform-specific launcher from the [AltarViewer releases](https://github.com/DreamRepo/AltarViewer/releases) and run it.
+Prebuilt executables for Windows, macOS, and Linux are attached to each GitHub Release (built by our GitHub Actions workflow).
 
-### Option 2 – Python app
+1) Download
+- Go to the repository's [Releases](https://github.com/DreamRepo/AltarViewer/releases) page
+- Under the latest release, download the asset for your OS/architecture. The filename typically contains the OS name, for example:
+   - Windows: contains `windows` or `win` and ends with `.exe`
+   - macOS: contains `macos` or `darwin` (may be a `.zip` that contains the app/binary)
+   - Linux: contains `linux` (often an ELF binary or a tarball)
+
+2) Run
+- Windows (PowerShell):
+   ```powershell
+   # If you downloaded a zip, extract it first
+   .\OmniboardLauncher.exe
+   ```
+   First run: If you see Windows SmartScreen, click “More info” → “Run anyway”. If the file is blocked, right‑click → Properties → check “Unblock”.
+
+- macOS (Terminal):
+   ```bash
+   # If you downloaded a zip, extract it first
+   chmod +x ./OmniboardLauncher   # may already be executable
+   ./OmniboardLauncher
+   ```
+   First run: If Gatekeeper blocks the app, open it via System Settings → Privacy & Security → “Open Anyway”, or right‑click the app → Open.
+
+- Linux (Terminal):
+   ```bash
+   # If you downloaded a tar/zip, extract it first
+   chmod +x ./OmniboardLauncher
+   ./OmniboardLauncher
+   ```
+   Notes: You may need a recent glibc (on older distros). If you see a “permission denied” on a mounted filesystem, copy the binary into your home directory and try again.
+
+3) Optional CLI usage
+- You can also run the executable from a terminal to capture logs. The GUI guides you through connecting to MongoDB and launching Omniboard.
+
+### From Source
 
 ```bash
 git clone https://github.com/DreamRepo/Altar.git
@@ -66,47 +99,38 @@ pip install -r requirements.txt
 python -m src.main
 ```
 
-### Option 3 – Docker image
+Alternatively, clone this repository directly if you only need the Viewer:
 
 ```bash
-docker pull alienor134/altarviewer:latest
-docker run -d \
-  -p 8060:8060 \
-  -v /var/run/docker.sock:/var/run/docker.sock \
-  -e MONGO_DEFAULT_URL="mongodb://<mongo-host>:27017/" \
-  --name altarviewer \
-  alienor134/altarviewer:latest
+git clone https://github.com/DreamRepo/AltarViewer.git
+cd AltarViewer
+python -m venv venv
+source venv/bin/activate    # or venv\Scripts\activate on Windows
+pip install -r requirements.txt
+python -m src.main
 ```
 
-Replace `<mongo-host>` with the host where MongoDB is reachable from the container (for example `host.docker.internal` on Docker Desktop).
-
-### Option 4 – Docker Compose (AltarDocker stack)
-
-Use AltarDocker to spin up MongoDB and MinIO, then point AltarViewer to that MongoDB:
-
-```bash
-git clone https://github.com/DreamRepo/AltarDocker.git
-cd AltarDocker
-docker compose -f docker-compose_default.yml up -d
-```
-
-Then start AltarViewer via option 1–3 and connect it to the MongoDB instance from the stack (for example `mongodb://localhost:27017`).
 
 ## Usage
 
 ### Quick Start
 
-1. **Launch the application** (using any install option above)
 
-2. **Connect to MongoDB**
+1. **Start docker desktop**
+- For windows: launch docker desktop executable. 
+
+- For Linux: ```systemctl --user start docker-desktop```
+
+2. **Launch the application** (using any install option above)
+
+3. **Connect to MongoDB**
     - Choose a connection mode:
        - Port: enter your MongoDB port (default: `27017` for localhost)
        - Full URI: paste a full MongoDB connection URI (works with Atlas, remote VMs, authentication, TLS and options)
           - Security note: do not paste passwords here. Prefer the "Credential URI" tab to avoid storing secrets in plain text.
-          - Example: `mongodb+srv://user:pass@my-cluster.mongodb.net/?retryWrites=true&w=majority`
-       - Credential URI: paste a credential-less URI (e.g., `mongodb://host:27017/yourdb`) and enter username/password separately
+       - Credential URI: paste a credential-less URI (e.g., `mongodb://host:27017/yourdb`) and enter username/password/auth_source separately from the following schemes: `mongodb+srv://user:pass@my-cluster.mongodb.net/?retryWrites=true&w=majority`, `mongodb://username:password@host:27017/?authsource=db_name`
           - Optionally save your password securely using the OS keyring
-    - Click "Connect" to list available databases
+   - Click "Connect" to list available databases
 
 4. **Select a database**
    - Choose a database from the dropdown list
@@ -120,8 +144,10 @@ Then start AltarViewer via option 1–3 and connect it to the MongoDB instance f
 
 #### MongoDB Connection
 - **Connection Modes**:
-   - Port: quick local development; launches Omniboard with `-m host:port:database`
-     - On Windows/macOS (Docker Desktop), if you connect to `localhost`/`127.0.0.1`, the app maps it to `host.docker.internal` so the container can reach your host MongoDB.
+    - Port: quick local development; launches Omniboard with `-m host:port:database`
+       - If you connect to `localhost` or `127.0.0.1`, the app maps it so the Docker container can reach your host MongoDB:
+          - Windows/macOS: `host.docker.internal`
+          - Linux: `172.17.0.1` (Docker bridge gateway)
    - Full URI: recommended for Atlas/remote; launches Omniboard with `--mu <uri-with-db>`
       - The selected database is injected into the URI path before launching Omniboard, while preserving credentials and query parameters.
       - Example constructed argument:
@@ -312,7 +338,9 @@ We welcome contributions! Please follow these guidelines:
  - On slower machines, Docker initialization can take >30s after launch; the app now waits up to 60s, but if you still see “Docker not running”, retry once Docker is fully ready.
  - The app does not auto-start Docker on any OS. Please start Docker Desktop (or the Docker service) manually, wait for it to be ready, and then launch Omniboard.
 
-Note: The app does not rewrite hosts (e.g., no host.docker.internal mapping). It uses the host you provide as-is.
+Note: In Port mode, the app automatically maps `localhost`/`127.0.0.1` so containers can reach MongoDB running on the host:
+- Windows/macOS: `host.docker.internal`
+- Linux: `172.17.0.1`
 
 ### Omniboard stuck on "Loading app..."
 
@@ -371,17 +399,23 @@ Older versions saved preferences at `~/.altarviewer_config.json`, which could be
 
 ### Getting Help
 
-- Check existing [GitHub Issues](https://github.com/DreamRepo/Altar/issues)
+- Check existing [GitHub Issues](https://github.com/DreamRepo/AltarViewer/issues)
 - Review [Omniboard documentation](https://vivekratnavel.github.io/omniboard/)
 - Contact the DREAM/Altar team
 
 
+## Versioning
+
+We use Semantic Versioning (SemVer) for AltarViewer. The latest version is shown by the Release badge at the top of this README. See the [Releases](https://github.com/DreamRepo/AltarViewer/releases) page for notes and downloadable artifacts.
+
 ### Release Process
 
-1. Update version in relevant files
-2. Create a git tag: `git tag -a v1.0.0 -m "Release version 1.0.0"`
-3. Push tag: `git push origin v1.0.0`
-4. Build and publish release manually (the tagged commit will only produce a draft release)
+1. Update version where applicable (e.g., badges or app metadata if needed)
+2. Create and push a tag (use the next SemVer):
+   - `git tag -a vX.Y.Z -m "Release vX.Y.Z"`
+   - `git push origin vX.Y.Z`
+3. GitHub Actions builds platform-specific binaries and uploads them to the Release
+4. Publish the Release when artifacts are validated
 
 ## License
 
