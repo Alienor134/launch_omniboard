@@ -4,6 +4,8 @@
 [![License](https://img.shields.io/badge/license-GPL%20v3-blue.svg)](LICENSE)
 [![Release](https://img.shields.io/github/v/release/DreamRepo/AltarViewer?include_prereleases&sort=semver)](https://github.com/DreamRepo/AltarViewer/releases)
 
+[➡️ Download the latest release](https://github.com/DreamRepo/AltarViewer/releases) for Windows, macOS, or Linux.
+
 A graphical user interface application for launching and managing [Omniboard](https://vivekratnavel.github.io/omniboard/) instances to visualize and track MongoDB-backed experiments from the DREAM/Altar ecosystem.
 
 <div align="center">
@@ -61,23 +63,23 @@ Prebuilt executables for Windows, macOS, and Linux are attached to each GitHub R
 - Windows (PowerShell):
    ```powershell
    # If you downloaded a zip, extract it first
-   .\OmniboardLauncher.exe
+   .\AltarViewer.exe
    ```
    First run: If you see Windows SmartScreen, click “More info” → “Run anyway”. If the file is blocked, right‑click → Properties → check “Unblock”.
 
 - macOS (Terminal):
    ```bash
    # If you downloaded a zip, extract it first
-   chmod +x ./OmniboardLauncher   # may already be executable
-   ./OmniboardLauncher
+   chmod +x ./AltarViewer   # may already be executable
+   ./AltarViewer
    ```
    First run: If Gatekeeper blocks the app, open it via System Settings → Privacy & Security → “Open Anyway”, or right‑click the app → Open.
 
 - Linux (Terminal):
    ```bash
    # If you downloaded a tar/zip, extract it first
-   chmod +x ./OmniboardLauncher
-   ./OmniboardLauncher
+   chmod +x ./AltarViewer
+   ./AltarViewer
    ```
    Notes: You may need a recent glibc (on older distros). If you see a “permission denied” on a mounted filesystem, copy the binary into your home directory and try again.
 
@@ -208,14 +210,14 @@ Build a standalone executable using PyInstaller:
 pip install pyinstaller
 
 # Build executable
-pyinstaller OmniboardLauncher.spec
+pyinstaller AltarViewer.spec
 
 # Output will be in dist/ directory
 ```
 
 #### Customizing the Build
 
-Edit [OmniboardLauncher.spec](OmniboardLauncher.spec) to customize:
+Edit [AltarViewer.spec](AltarViewer.spec) to customize:
 - Application name and icon
 - Bundled data files
 - Hidden imports
@@ -238,7 +240,7 @@ AltarViewer/
 ├── assets/              # Images and resources
 ├── requirements.txt     # Production dependencies
 ├── requirements-dev.txt # Development dependencies
-└── OmniboardLauncher.spec # PyInstaller specification
+└── AltarViewer.spec # PyInstaller specification
 ```
 
 ### Key Components

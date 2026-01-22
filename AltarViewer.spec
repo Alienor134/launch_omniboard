@@ -39,7 +39,7 @@ exe = EXE(
     a.zipfiles,
     a.datas,
     [],
-    name='OmniboardLauncher',
+    name='AltarViewer',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,

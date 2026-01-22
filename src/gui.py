@@ -20,7 +20,7 @@ ctk.set_appearance_mode("dark")
 
 
 class MongoApp(ctk.CTk):
-    """Main application window for MongoDB Database Selector and Omniboard Launcher."""
+    """Main application window for MongoDB Database Selector (AltarViewer)."""
     
     def __init__(self):
         """Initialize the main application window."""
@@ -67,7 +67,7 @@ class MongoApp(ctk.CTk):
         """Create the title label."""
         title_label = ctk.CTkLabel(
             self, 
-            text="MongoDB & Omniboard Launcher",
+            text="AltarViewer",
             font=ctk.CTkFont(size=20, weight="bold")
         )
         title_label.grid(row=0, column=0, padx=20, pady=(10, 5), sticky="ew")

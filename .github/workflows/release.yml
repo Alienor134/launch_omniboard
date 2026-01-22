@@ -34,13 +34,13 @@ jobs:
 
     - name: Build executable
       run: |
-        pyinstaller OmniboardLauncher.spec
+        pyinstaller AltarViewer.spec
 
     - name: Upload artifact
       uses: actions/upload-artifact@v4
       with:
-        name: OmniboardLauncher-Windows
-        path: dist/OmniboardLauncher.exe
+        name: AltarViewer-Windows
+        path: dist/AltarViewer.exe
 
   build-macos:
     runs-on: macos-latest
@@ -67,13 +67,13 @@ jobs:
 
     - name: Build executable
       run: |
-        pyinstaller OmniboardLauncher.spec
+        pyinstaller AltarViewer.spec
 
     - name: Upload artifact
       uses: actions/upload-artifact@v4
       with:
-        name: OmniboardLauncher-macOS
-        path: dist/OmniboardLauncher
+        name: AltarViewer-macOS
+        path: dist/AltarViewer
 
   build-linux:
     runs-on: ubuntu-latest
@@ -100,13 +100,13 @@ jobs:
 
     - name: Build executable
       run: |
-        pyinstaller OmniboardLauncher.spec
+        pyinstaller AltarViewer.spec
 
     - name: Upload artifact
       uses: actions/upload-artifact@v4
       with:
-        name: OmniboardLauncher-Linux
-        path: dist/OmniboardLauncher
+        name: AltarViewer-Linux
+        path: dist/AltarViewer
 
   release:
     needs: [build-windows, build-macos, build-linux]
@@ -116,33 +116,33 @@ jobs:
     - name: Download Windows artifact
       uses: actions/download-artifact@v4
       with:
-        name: OmniboardLauncher-Windows
+        name: AltarViewer-Windows
         path: ./windows
 
     - name: Download macOS artifact
       uses: actions/download-artifact@v4
       with:
-        name: OmniboardLauncher-macOS
+        name: AltarViewer-macOS
         path: ./macos
 
     - name: Download Linux artifact
       uses: actions/download-artifact@v4
       with:
-        name: OmniboardLauncher-Linux
+        name: AltarViewer-Linux
         path: ./linux
 
     - name: Rename artifacts
       run: |
-        mv ./macos/OmniboardLauncher ./macos/OmniboardLauncher-macOS
-        mv ./linux/OmniboardLauncher ./linux/OmniboardLauncher-Linux
+        mv ./macos/AltarViewer ./macos/AltarViewer-macOS
+        mv ./linux/AltarViewer ./linux/AltarViewer-Linux
 
     - name: Create Release
       uses: softprops/action-gh-release@v1
       with:
         files: |
-          ./windows/OmniboardLauncher.exe
-          ./macos/OmniboardLauncher-macOS
-          ./linux/OmniboardLauncher-Linux
+          ./windows/AltarViewer.exe
+          ./macos/AltarViewer-macOS
+          ./linux/AltarViewer-Linux
         draft: true
         prerelease: false
       env:
