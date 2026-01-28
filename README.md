@@ -70,8 +70,8 @@ Prebuilt executables for Windows, macOS, and Linux are attached to each GitHub R
 - macOS (Terminal):
    ```bash
    # If you downloaded a zip, extract it first
-   chmod +x ./AltarViewer   # may already be executable
-   ./AltarViewer
+   chmod +x ./AltarViewer-Linux   # may already be executable
+   ./AltarViewer-Linux
    ```
    First run: If Gatekeeper blocks the app, open it via System Settings → Privacy & Security → “Open Anyway”, or right‑click the app → Open.
 
